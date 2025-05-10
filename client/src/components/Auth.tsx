@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from '../lib/supabaseClient';
 
 export default function Auth() {
   const [email, setEmail] = useState('');
@@ -14,6 +15,7 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Submit form triggered");
     
     if (!email || !email.includes('@')) {
       toast({
@@ -25,12 +27,15 @@ export default function Auth() {
     }
     
     setIsLoading(true);
+    console.log("Trying to sign in with email:", email);
     
     try {
-      const { error } = await signInWithMagicLink(email);
+      console.log("Calling signInWithMagicLink");
+      const response = await signInWithMagicLink(email);
+      console.log("Sign in response:", response);
       
-      if (error) {
-        throw new Error(error.message);
+      if (response.error) {
+        throw new Error(response.error.message);
       }
       
       toast({
@@ -46,6 +51,27 @@ export default function Auth() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const testSupabaseConnection = async () => {
+    try {
+      console.log("Testing Supabase connection");
+      const { data, error } = await supabase.from('non_existent_table').select('*').limit(1);
+      console.log("Supabase test response:", { data, error });
+      
+      toast({
+        title: "Supabase connection test",
+        description: error ? `Error: ${error.message}` : "Connection successful!",
+        variant: error ? "destructive" : "default",
+      });
+    } catch (err) {
+      console.error("Supabase test error:", err);
+      toast({
+        title: "Supabase test error",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
     }
   };
 
@@ -92,6 +118,17 @@ export default function Auth() {
             <p className="text-center text-sm text-muted-foreground mt-4">
               Novo por aqui? <a href="#" className="text-primary hover:text-primary/90 font-medium">Criar conta</a>
             </p>
+            
+            <div className="mt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={testSupabaseConnection}
+                className="w-full"
+              >
+                Testar Conexão Supabase
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
