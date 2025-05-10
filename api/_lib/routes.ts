@@ -4,6 +4,8 @@ import { storage } from "./storage"; // Assumindo que storage.ts estará em api/
 import { z } from "zod";
 import { insertContentSchema, insertCreditSchema, onboardingSchema } from "../../shared/schema"; // Ajustado o caminho
 import OpenAI from "openai";
+// Importar ContentType do Prisma para uso explícito se necessário
+import { ContentType } from '@prisma/client';
 
 // Initialize OpenAI client
 const openai = new OpenAI({ 
@@ -17,13 +19,14 @@ export function registerRoutes(app: Express): void {
   // Profile endpoints
   app.get("/api/profile", async (req, res) => {
     try {
-      // In a real app, this would come from the session token
       const userId = req.query.userId as string;
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
       const profile = await storage.getUserProfile(userId);
+      if (!profile) {
+        return res.status(404).json({ message: "Perfil não encontrado" });
+      }
       return res.json(profile);
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -33,51 +36,65 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/profile", async (req, res) => {
     try {
-      const result = onboardingSchema.safeParse(req.body);
-      
-      if (!result.success) {
-        return res.status(400).json({ message: "Dados de perfil inválidos", errors: result.error.format() });
+      // O onboardingSchema deve agora ser compatível com Prisma.UserProfileUncheckedCreateInput
+      // Principalmente, garantir que `email` esteja presente e `userId`.
+      const parseResult = onboardingSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Dados de perfil inválidos", errors: parseResult.error.format() });
       }
-      
-      const userId = req.body.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+      const { userId, email, ...profileData } = parseResult.data;
+
+      if (!userId || !email) { // Garantir que userId e email estão presentes para UserProfile
+        return res.status(400).json({ message: "userId e email são obrigatórios para o perfil" });
       }
-      
-      const profile = await storage.saveUserProfile({
+
+      const profileInput = {
         userId,
-        businessType: result.data.businessType,
-        targetPersona: result.data.targetPersona,
-        channels: result.data.channels,
-      });
-      
-      return res.json(profile);
+        email,
+        name: profileData.name,
+        businessType: profileData.businessType,
+        targetPersona: profileData.targetPersona,
+        channels: profileData.channels,
+      };
+
+      const profile = await storage.saveUserProfile(profileInput);
+      return res.status(201).json(profile);
     } catch (error) {
       console.error("Error saving profile:", error);
+      // Verificar se é um erro de constraint única (ex: email já existe)
+      if (error instanceof Error && error.message.includes("Unique constraint failed")) { // Adaptar para erro real do Prisma
+        return res.status(409).json({ message: "Erro ao salvar perfil: Conflito de dados (ex: email já existe)" });
+      }
       return res.status(500).json({ message: "Erro ao salvar perfil" });
     }
   });
 
   app.put("/api/profile", async (req, res) => {
     try {
-      const result = onboardingSchema.safeParse(req.body);
-      
-      if (!result.success) {
-        return res.status(400).json({ message: "Dados de perfil inválidos", errors: result.error.format() });
+      const userIdFromParams = req.query.userId as string; // Ou pegar de um parâmetro de rota /api/profile/:userId
+      if (!userIdFromParams) {
+        return res.status(400).json({ message: "userId é obrigatório para atualizar o perfil" });
+      }
+
+      const parseResult = onboardingSchema.safeParse(req.body); // Reusar schema, mas garantir que não inclua userId/email se não devem ser atualizáveis por este schema.
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Dados de perfil inválidos", errors: parseResult.error.format() });
       }
       
-      const userId = req.body.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
+      // Não permitir atualização de userId ou email via este endpoint se for o caso.
+      // Prisma.UserProfileUncheckedUpdateInput aceita campos opcionais.
+      const { userId, email, ...updateData } = parseResult.data;
       
-      const profile = await storage.updateUserProfile({
-        userId,
-        businessType: result.data.businessType,
-        targetPersona: result.data.targetPersona,
-        channels: result.data.channels,
-      });
-      
+      // Se userId e email no corpo devem ser ignorados para o update, não os inclua no objeto de dados.
+      // O userId para a cláusula WHERE vem de userIdFromParams.
+      const profileUpdateData = {
+        name: updateData.name,
+        businessType: updateData.businessType,
+        targetPersona: updateData.targetPersona,
+        channels: updateData.channels,
+      };
+
+      const profile = await storage.updateUserProfile(userIdFromParams, profileUpdateData);
       return res.json(profile);
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -88,25 +105,30 @@ export function registerRoutes(app: Express): void {
   // Content generation endpoint
   app.post("/api/generate", async (req, res) => {
     try {
-      const { userId, type, objective, tone, theme } = req.body;
-      
+      // O insertContentSchema deve ser compatível com Prisma.ContentUncheckedCreateInput
+      const parseResult = insertContentSchema.safeParse(req.body);
+      if(!parseResult.success) {
+        return res.status(400).json({ message: "Dados para geração inválidos", errors: parseResult.error.format() });
+      }
+      const { userId, type, objective, tone, theme } = parseResult.data;
+
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      // Check if user has credits
       const userCredits = await storage.getUserCredits(userId);
       if (!userCredits || userCredits.amount <= 0) {
         return res.status(403).json({ message: "Créditos insuficientes" });
       }
       
-      // Get user profile for context
       const userProfile = await storage.getUserProfile(userId);
       
-      // Build prompt for OpenAI
-      let prompt = `Gere um ${type === 'INSTAGRAM_POST' ? 'post para Instagram' : 
-                    type === 'BLOG_ARTICLE' ? 'artigo para blog' : 
-                    'anúncio para Facebook'} em português brasileiro.`;
+      let prompt = `Gere um ${type === ContentType.INSTAGRAM_POST ? 'post para Instagram' : 
+                    type === ContentType.BLOG_ARTICLE ? 'artigo para blog' : 
+                    type === ContentType.FACEBOOK_AD ? 'anúncio para Facebook' : 
+                    type === ContentType.EMAIL_COPY ? 'cópia de e-mail' : 
+                    type === ContentType.CTA_COPY ? 'cópia de CTA' : 
+                    'conteúdo'} em português brasileiro.`;
       
       prompt += `\nTema: ${theme}`;
       prompt += `\nObjetivo: ${objective}`;
@@ -117,18 +139,16 @@ export function registerRoutes(app: Express): void {
         prompt += `\nPersona alvo: ${userProfile.targetPersona || ''}`;
       }
       
-      // Add content type specific instructions
-      if (type === 'INSTAGRAM_POST') {
+      if (type === ContentType.INSTAGRAM_POST) {
         prompt += `\nFormate como um post de Instagram com emojis, hashtags e chamada para ação.`;
-      } else if (type === 'BLOG_ARTICLE') {
+      } else if (type === ContentType.BLOG_ARTICLE) {
         prompt += `\nCrie um artigo de blog com introdução, desenvolvimento em tópicos, e conclusão. Otimize para SEO.`;
-      } else if (type === 'FACEBOOK_AD') {
+      } else if (type === ContentType.FACEBOOK_AD) {
         prompt += `\nCrie um anúncio persuasivo para Facebook com título atrativo, descrição clara e call-to-action forte.`;
-      }
+      } // Adicionar mais `else if` para EMAIL_COPY e CTA_COPY se necessário
       
-      // Get response from OpenAI
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -142,32 +162,30 @@ export function registerRoutes(app: Express): void {
         max_tokens: 1000,
       });
       
-      const generatedContent = completion.choices[0].message.content;
+      const generatedContentText = completion.choices[0].message.content;
       
-      // Extract a title from the content if none was provided
       let title = theme;
-      if (generatedContent && !title) {
-        const lines = generatedContent.split('\n');
+      if (generatedContentText && !title) {
+        const lines = generatedContentText.split('\n');
         title = lines[0].replace(/^#+ /, '').slice(0, 100);
       }
       
-      // Save content to history
-      const content = await storage.saveContent({
+      const contentToSave = {
         userId,
         type,
-        title,
-        body: generatedContent || "",
+        title: title || "Conteúdo Gerado",
+        body: generatedContentText || "",
         tone,
         objective,
         status: "active",
-      });
-      
-      // Deduct one credit
+      };
+
+      const savedContent = await storage.saveContent(contentToSave);
       await storage.updateUserCredits(userId, -1, "generation");
       
-      return res.json({ 
-        content,
-        generatedContent
+      return res.status(201).json({ 
+        content: savedContent,
+        generatedContent: generatedContentText // Manter este campo se o frontend o utiliza
       });
     } catch (error) {
       console.error("Error generating content:", error);
@@ -179,13 +197,19 @@ export function registerRoutes(app: Express): void {
   app.get("/api/history", async (req, res) => {
     try {
       const userId = req.query.userId as string;
+      const typeQuery = req.query.type as string;
+
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const type = req.query.type as string;
+      // Validar se typeQuery é um ContentType válido
+      let contentTypeFilter: ContentType | undefined = undefined;
+      if (typeQuery && Object.values(ContentType).includes(typeQuery as ContentType)) {
+        contentTypeFilter = typeQuery as ContentType;
+      }
       
-      const contents = await storage.getUserContents(userId, type);
+      const contents = await storage.getUserContents(userId, contentTypeFilter);
       return res.json(contents);
     } catch (error) {
       console.error("Error fetching content history:", error);
@@ -195,25 +219,26 @@ export function registerRoutes(app: Express): void {
 
   app.delete("/api/content/:id", async (req, res) => {
     try {
-      const contentId = parseInt(req.params.id);
+      const contentId = req.params.id; // ID é string (UUID)
       const userId = req.query.userId as string;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+      if (!contentId) {
+        return res.status(400).json({ message: "Content ID é obrigatório" });
+      }
       
       const content = await storage.getContent(contentId);
-      
       if (!content) {
         return res.status(404).json({ message: "Conteúdo não encontrado" });
       }
-      
       if (content.userId !== userId) {
         return res.status(403).json({ message: "Não autorizado a excluir este conteúdo" });
       }
       
       await storage.deleteContent(contentId);
-      return res.json({ success: true });
+      return res.status(200).json({ success: true, message: "Conteúdo excluído" });
     } catch (error) {
       console.error("Error deleting content:", error);
       return res.status(500).json({ message: "Erro ao excluir conteúdo" });
@@ -227,8 +252,11 @@ export function registerRoutes(app: Express): void {
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
       const credits = await storage.getUserCredits(userId);
+      if (!credits) {
+        // Se o usuário não tem registro de crédito, pode retornar 0 ou um status específico
+        return res.json({ amount: 0 });
+      }
       return res.json(credits);
     } catch (error) {
       console.error("Error fetching credits:", error);
@@ -238,11 +266,14 @@ export function registerRoutes(app: Express): void {
 
   app.post("/api/credits/add", async (req, res) => {
     try {
-      const { userId, amount, source } = req.body;
+      const parseResult = insertCreditSchema.safeParse(req.body);
+      if(!parseResult.success){
+        return res.status(400).json({ message: "Dados para crédito inválidos", errors: parseResult.error.format() });
+      }
+      const { userId, amount, source } = parseResult.data;
       
-      // In a real app, this would have admin authorization checks
-      if (!userId || !amount) {
-        return res.status(400).json({ message: "Dados inválidos" });
+      if (!userId || amount === undefined) { // amount pode ser 0, então checar undefined
+        return res.status(400).json({ message: "userId e amount são obrigatórios" });
       }
       
       const credits = await storage.updateUserCredits(userId, amount, source || "admin");

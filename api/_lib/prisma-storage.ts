@@ -1,72 +1,58 @@
 import prisma from './prisma-client';
-import type { IStorage } from './storage'; // Assumindo que IStorage estará em api/_lib/storage.ts
-import type {
-  User, InsertUser,
-  UserProfile, InsertUserProfile,
-  Content, InsertContent,
-  Credit, InsertCredit, // Embora Credit não seja usado diretamente aqui, é bom para referência futura
-  ContentType
-} from '../../shared/schema'; // Ajustado o caminho
+import type { IStorage } from './storage';
+// Importar tipos diretamente do @prisma/client
+import { User, UserProfile, Content, Credit, ContentType, Prisma } from '@prisma/client';
+
+// Remover importações de '../../shared/schema' se os tipos do Prisma forem suficientes
+// import type {
+//   User as SharedUser, InsertUser as SharedInsertUser,
+//   UserProfile as SharedUserProfile, InsertUserProfile as SharedInsertUserProfile,
+//   Content as SharedContent, InsertContent as SharedInsertContent,
+//   Credit as SharedCredit, InsertCredit as SharedInsertCredit,
+//   ContentType as SharedContentType
+// } from '../../shared/schema';
 
 export class PrismaStorage implements IStorage {
-  async getUser(id: string): Promise<User | undefined> {
-    const user = await prisma.user.findUnique({ where: { id } });
-    return user || undefined;
+  async getUser(id: string): Promise<User | null> { // Retorno pode ser null
+    return prisma.user.findUnique({ where: { id } });
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const user = await prisma.user.findUnique({ where: { email } });
-    return user || undefined;
+  async getUserByEmail(email: string): Promise<User | null> { // Retorno pode ser null
+    return prisma.user.findUnique({ where: { email } });
   }
 
-  async createUser(data: InsertUser): Promise<User> {
-    // No Prisma, se User tem um profile opcional, pode ser criado separadamente ou com transação.
-    // O schema atual tem User.id como string, e não auto-incremento, então deve ser fornecido.
-    // A InsertUser de @shared/schema deve ser compatível.
+  async createUser(data: Prisma.UserCreateInput): Promise<User> {
     return prisma.user.create({ data });
   }
 
-  async getUserProfile(userId: string): Promise<UserProfile | undefined> {
-    const profile = await prisma.userProfile.findUnique({ where: { userId } });
-    return profile || undefined;
+  async getUserProfile(userId: string): Promise<UserProfile | null> { // Retorno pode ser null
+    return prisma.userProfile.findUnique({ where: { userId } });
   }
 
-  async saveUserProfile(data: InsertUserProfile): Promise<UserProfile> {
-    // O ID do UserProfile é um UUID gerado pelo banco/Prisma.
-    // InsertUserProfile deve ter userId, e os outros campos.
+  async saveUserProfile(data: Prisma.UserProfileUncheckedCreateInput): Promise<UserProfile> {
+    // UserProfileUncheckedCreateInput permite passar userId diretamente,
+    // e o Prisma gerencia o ID do UserProfile (UUID)
+    // Garanta que 'email' esteja incluído em 'data' conforme o schema UserProfile
     return prisma.userProfile.create({ data });
   }
 
-  async updateUserProfile(data: InsertUserProfile): Promise<UserProfile> {
-    // InsertUserProfile aqui deve conter o userId para encontrar o perfil a ser atualizado.
-    // E os campos a serem atualizados.
-    // O schema do UserProfile tem updatedAt, então o Prisma cuida disso.
+  async updateUserProfile(userId: string, data: Prisma.UserProfileUncheckedUpdateInput): Promise<UserProfile> {
+    // UserProfileUncheckedUpdateInput para atualizações
     return prisma.userProfile.update({
-      where: { userId: data.userId }, // Supondo que data.userId está presente
-      data: {
-        name: data.name,
-        businessType: data.businessType,
-        targetPersona: data.targetPersona,
-        channels: data.channels,
-      },
+      where: { userId },
+      data,
     });
   }
 
-  // NOTA: A interface IStorage usa id: number para Content.
-  // O schema.prisma usa id: String @id @default(uuid()) para Content.
-  // Vou assumir que precisamos usar string para consistência com o schema.
-  // Se IStorage for mantida com id: number, uma conversão ou refatoração da interface será necessária.
-
-  async getContent(id: string): Promise<Content | undefined> { // Alterado para id: string
-    const content = await prisma.content.findUnique({ where: { id } });
-    return content || undefined;
+  async getContent(id: string): Promise<Content | null> { // id já é string, retorno pode ser null
+    return prisma.content.findUnique({ where: { id } });
   }
 
-  async getUserContents(userId: string, type?: string): Promise<Content[]> {
+  async getUserContents(userId: string, type?: ContentType): Promise<Content[]> {
     return prisma.content.findMany({
       where: {
         userId,
-        ...(type && { type: type as ContentType }), // Garante que o tipo seja o enum ContentType
+        ...(type && { type }), // 'type' aqui já deve ser do enum ContentType
       },
       orderBy: {
         createdAt: 'desc',
@@ -74,21 +60,22 @@ export class PrismaStorage implements IStorage {
     });
   }
 
-  async saveContent(data: InsertContent): Promise<Content> {
-    // InsertContent deve ser compatível com o model Content do Prisma.
-    // O ID é gerado automaticamente.
+  async saveContent(data: Prisma.ContentUncheckedCreateInput): Promise<Content> {
+    // ContentUncheckedCreateInput para passar userId e type (enum)
     return prisma.content.create({ data });
   }
 
-  async deleteContent(id: string): Promise<void> { // Alterado para id: string
+  async deleteContent(id: string): Promise<void> { // id já é string
     await prisma.content.delete({ where: { id } });
+    // Prisma delete não retorna nada por padrão, então Promise<void> está correto.
+    // Para confirmar a exclusão, pode-se tentar buscar o item antes ou verificar o count.
   }
 
   async getContentCount(userId: string): Promise<number> {
     return prisma.content.count({ where: { userId } });
   }
 
-  async getContentTypeDistribution(userId: string): Promise<{ type: string; count: number }[]> {
+  async getContentTypeDistribution(userId: string): Promise<{ type: ContentType; count: number }[]> {
     const result = await prisma.content.groupBy({
       by: ['type'],
       where: { userId },
@@ -99,28 +86,46 @@ export class PrismaStorage implements IStorage {
     return result.map(item => ({ type: item.type, count: item._count.type }));
   }
 
-  async getUserCredits(userId: string): Promise<{ amount: number } | undefined> {
-    // O schema Credit tem amount: Int. Se houver múltiplos registros de crédito por usuário,
-    // precisaríamos somá-los. O schema atual sugere que pode haver múltiplos.
-    // Vamos assumir que a lógica correta é somar todos os créditos do usuário.
-    const allCredits = await prisma.credit.findMany({ where: { userId } });
-    if (!allCredits || allCredits.length === 0) return undefined;
-    const totalAmount = allCredits.reduce((sum, credit) => sum + credit.amount, 0);
-    return { amount: totalAmount };
+  async getUserCredits(userId: string): Promise<{ amount: number } | null> { // Retorno pode ser null
+    const aggregation = await prisma.credit.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: { userId },
+    });
+    const totalAmount = aggregation._sum.amount;
+    return totalAmount !== null ? { amount: totalAmount } : null;
   }
 
   async updateUserCredits(userId: string, amountChange: number, source: string): Promise<{ amount: number }> {
-    // Esta função na IStorage sugere adicionar ou subtrair do total.
-    // No Prisma, isso significa criar um novo registro de transação de crédito.
+    // Criar um novo registro de crédito para a transação
     await prisma.credit.create({
       data: {
         userId,
         amount: amountChange,
         source,
+        // user: { connect: { id: userId } } // Prisma infere a conexão pelo userId
       },
     });
-    // Retornar o novo total
-    const currentTotal = await this.getUserCredits(userId);
-    return { amount: currentTotal?.amount ?? 0 }; // Se não houver créditos, o novo total é 0 + amountChange indiretamente
+    // Retornar o novo total agregado
+    const newTotal = await this.getUserCredits(userId);
+    // Se newTotal for null (nenhum crédito ainda), o amount deve ser o amountChange que acabou de ser adicionado
+    // ou 0 se o amountChange for negativo e não houver créditos anteriores.
+    // A lógica aqui é que getUserCredits retorna o *total*. Se ele retorna null, o total é 0.
+    // O amountChange é o que foi *transacionado*. O resultado deve ser o novo *total*.
+    if (newTotal) {
+        return { amount: newTotal.amount };
+    }
+    // Se não havia créditos e adicionamos/subtraímos, o novo total é o amountChange (se positivo)
+    // ou 0 (se negativo e não havia nada, não podemos ter créditos negativos no total).
+    // Simplificando: se getUserCredits é null, significa que o total era 0 antes desta transação.
+    // O novo total é o amountChange, mas não pode ser negativo.
+    // No entanto, getUserCredits após a criação já deve refletir o novo total.
+    // Uma forma mais segura é recalcular o total.
+    const finalTotalAggregation = await prisma.credit.aggregate({
+        _sum: { amount: true },
+        where: { userId },
+    });
+    return { amount: finalTotalAggregation._sum.amount ?? 0 };
   }
 } 
