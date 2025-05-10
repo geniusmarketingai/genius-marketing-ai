@@ -84,3 +84,25 @@
 *   Adicionar scripts `lint`, `lint:fix`, e `format` ao `package.json` para facilitar a execução das ferramentas.
 *   Executar `npm run lint:fix` e `npm run format` para aplicar as novas regras ao código existente.
 *   Prosseguir com a geração do Prisma Client e as demais etapas do desenvolvimento.
+
+## 2024-07-26: Versionamento Inicial com GitHub
+
+**Sumário Técnico do Progresso:**
+
+* Repositório Git já estava inicializado no diretório do projeto.
+* Ajustado o arquivo `.gitignore` para garantir exclusão de `node_modules/`, `.env*`, `dist/` e `.next/` do versionamento, conforme boas práticas e requisitos do projeto.
+* Realizado commit inicial com a estrutura do projeto, incluindo arquivos de configuração, documentação e código base.
+* Configurado o repositório remoto no GitHub: `https://github.com/geniusmarketingai/genius-marketing-ai.git`.
+* Branch principal definido como `main`.
+* Push realizado com sucesso para o repositório remoto.
+
+**Decisões Chave e Justificativas:**
+
+* Garantia de versionamento seguro, limpo e alinhado com as práticas de engenharia exigidas pelo projeto e pelas regras Vibe Coding.
+* Exclusão explícita de arquivos sensíveis e de build para evitar vazamento de dados e poluição do repositório.
+
+**Próximos Passos Sugeridos:**
+
+* Configurar GitHub Actions para CI/CD (lint, testes, build).
+* Definir regras de proteção de branch e revisão de PRs.
+* Prosseguir com o desenvolvimento modular dos domínios e casos de uso prioritários.
