@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerRoutes } from './_lib/routes'; // Ajustado para o novo local
+import { registerRoutes } from './_lib/routes.js'; // Ajustado para o novo local e adicionada a extensão .js
 // import { setupVite, serveStatic, log } from "./vite"; // Removido - não mais necessário aqui
 
 const app = express();
