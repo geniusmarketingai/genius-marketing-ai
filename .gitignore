@@ -7,3 +7,9 @@ vite.config.ts.*
 .env*
 .next
 .vercel
+
+# API Output
+api/.dist/
+
+# Drizzle
+drizzle.config.ts
