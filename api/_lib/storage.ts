@@ -10,7 +10,7 @@ export interface IStorage {
   // User Profile operations
   getUserProfile(userId: string): Promise<UserProfile | null>;
   saveUserProfile(data: Prisma.UserProfileUncheckedCreateInput): Promise<UserProfile>;
-  updateUserProfile(userId: string, data: Prisma.UserProfileUncheckedUpdateInput): Promise<UserProfile>;
+  updateUserProfile(userId: string, data: Partial<Omit<UserProfile, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>): Promise<UserProfile>;
   
   // Content operations
   getContent(id: string): Promise<Content | null>;
@@ -23,6 +23,9 @@ export interface IStorage {
   // Credits operations
   getUserCredits(userId: string): Promise<{amount: number} | null>;
   updateUserCredits(userId: string, amountChange: number, source: string): Promise<{amount: number}>;
+
+  // User specific methods (to be implemented by PrismaStorage)
+  findOrCreateUser(data: { id: string; email: string; }): Promise<User>;
 }
 
 export class MemStorage implements IStorage {
@@ -89,7 +92,7 @@ export class MemStorage implements IStorage {
     return newProfile;
   }
 
-  async updateUserProfile(userId: string, data: Prisma.UserProfileUncheckedUpdateInput): Promise<UserProfile> {
+  async updateUserProfile(userId: string, data: Partial<Omit<UserProfile, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>): Promise<UserProfile> {
     const existingProfile = this.userProfiles.get(userId);
     if (!existingProfile) {
       throw new Error("Profile not found for update.");
@@ -179,6 +182,12 @@ export class MemStorage implements IStorage {
 
     const currentTotal = await this.getUserCredits(userId);
     return { amount: currentTotal?.amount ?? 0 }; 
+  }
+
+  // User specific methods (to be implemented by PrismaStorage)
+  async findOrCreateUser(data: { id: string; email: string; }): Promise<User> {
+    // Implementation needed
+    throw new Error("Method not implemented");
   }
 }
 

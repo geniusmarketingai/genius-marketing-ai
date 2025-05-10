@@ -128,4 +128,40 @@ export class PrismaStorage implements IStorage {
     });
     return { amount: finalTotalAggregation._sum.amount ?? 0 };
   }
+
+  async findOrCreateUser(data: { id: string; email: string; }): Promise<User> {
+    let user = await prisma.user.findUnique({
+      where: { id: data.id },
+    });
+
+    if (!user) {
+      // Se o usuário não for encontrado pelo ID, tenta encontrar pelo e-mail.
+      // Isso pode ser útil se, por algum motivo, o ID do Supabase Auth mudasse
+      // ou se houvesse uma tentativa de criar um usuário com e-mail já existente mas ID diferente.
+      // No entanto, para o ID do Supabase Auth, ele deve ser estável.
+      // A lógica principal é criar se não existe pelo ID.
+      user = await prisma.user.findUnique({
+        where: { email: data.email },
+      });
+
+      if (!user) {
+        // Usuário não encontrado nem por ID nem por e-mail, então criar.
+        user = await prisma.user.create({
+          data: {
+            id: data.id, // Este é o Supabase Auth User ID
+            email: data.email,
+            // Você pode querer adicionar um nome default se sua tabela 'users' tiver um campo 'name'
+            // Ex: name: data.email.split('@')[0],
+          },
+        });
+      } else {
+        // Usuário encontrado pelo e-mail, mas não pelo ID. 
+        // Isso pode indicar um problema de sincronização ou um caso atípico.
+        // Por ora, vamos retornar o usuário encontrado pelo e-mail.
+        // Você pode querer logar isso ou ter uma estratégia diferente.
+        console.warn(`User found by email (${data.email}) but not by ID (${data.id}). Returning user found by email.`);
+      }
+    }
+    return user;
+  }
 } 

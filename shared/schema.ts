@@ -59,6 +59,15 @@ export const insertCreditSchema = z.object({
 });
 export type InsertCreditData = z.infer<typeof insertCreditSchema>;
 
+// Schema para registrar/sincronizar usuário da Supabase Auth com a tabela local 'users'
+export const userRegistrationSchema = z.object({
+  id: z.string().min(1, "User ID (Supabase Auth UID) é obrigatório"),
+  email: z.string().email("Email inválido"),
+  // Adicione aqui outros campos que você pode querer passar do frontend 
+  // ou que sejam obrigatórios na sua tabela `users` e não tenham default no Prisma.
+});
+export type UserRegistrationData = z.infer<typeof userRegistrationSchema>;
+
 // Não precisamos mais exportar tipos como User, UserProfile, etc., daqui,
 // pois eles devem ser importados de '@prisma/client' em toda a aplicação.
 // As definições do Drizzle (pgTable, etc.) devem ser completamente removidas deste arquivo.

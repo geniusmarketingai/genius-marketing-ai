@@ -2,10 +2,12 @@ import type { Express } from "express";
 // Removido: import { createServer, type Server } from "http"; // Não precisamos criar o servidor HTTP aqui
 import { storage } from "./storage"; // Assumindo que storage.ts estará em api/_lib/storage.ts
 import { z } from "zod";
-import { insertContentSchema, insertCreditSchema, onboardingSchema, contentGenerationSchema } from "../../shared/schema"; // Ajustado o caminho
+import { insertContentSchema, insertCreditSchema, onboardingSchema, contentGenerationSchema, userRegistrationSchema } from "../../shared/schema"; // Ajustado o caminho
 import OpenAI from "openai";
 // Importar ContentType do Prisma para uso explícito se necessário
 import { ContentType } from '@prisma/client';
+// Importar Prisma para error handling específico
+import { Prisma } from '@prisma/client'; 
 
 // Initialize OpenAI client
 const openai = new OpenAI({ 
@@ -16,6 +18,36 @@ const openai = new OpenAI({
 export function registerRoutes(app: Express): void { 
   // API routes prefix with /api
   
+  // Rota para registrar/sincronizar usuário
+  app.post("/api/user", async (req, res) => {
+    try {
+      const parseResult = userRegistrationSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Dados de registro de usuário inválidos", 
+          errors: parseResult.error.format() 
+        });
+      }
+      
+      const { id, email } = parseResult.data;
+
+      // A função storage.findOrCreateUser receberá os dados validados
+      const user = await storage.findOrCreateUser({ id, email }); 
+      
+      // Retorna 200 tanto se encontrou quanto se criou, com os dados do usuário.
+      // O frontend pode não precisar diferenciar, apenas saber que o usuário existe no sistema.
+      return res.status(200).json(user); 
+    } catch (error) {
+      console.error("[API Error] /api/user:", error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // Tratar erros conhecidos do Prisma se necessário, embora findOrCreateUser deva ser robusto
+        // Ex: P2002 para unique constraint, embora a lógica de findOrCreate deva evitar isso para 'id' e 'email' primários.
+        return res.status(500).json({ message: `Erro de banco de dados ao registrar usuário: ${error.code}` });
+      }
+      return res.status(500).json({ message: "Erro interno do servidor ao registrar usuário" });
+    }
+  });
+
   // Profile endpoints
   app.get("/api/profile", async (req, res) => {
     try {
