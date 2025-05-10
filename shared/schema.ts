@@ -1,9 +1,17 @@
 import { z } from "zod";
-// Importar ContentType diretamente do Prisma client para garantir consistência
-import { ContentType as PrismaContentTypeEnum } from '@prisma/client';
+// REMOVIDO: import { ContentType as PrismaContentTypeEnum } from '@prisma/client';
 
-// Helper para criar um Zod enum a partir do enum do Prisma
-const contentTypeZodEnum = z.nativeEnum(PrismaContentTypeEnum);
+// Adicionada definição local do enum ContentType com base no schema.prisma
+export const ContentTypeEnum = z.enum([
+  "INSTAGRAM_POST",
+  "BLOG_ARTICLE",
+  "FACEBOOK_AD",
+  "EMAIL_COPY",
+  "CTA_COPY"
+]);
+
+// Helper foi removido pois ContentTypeEnum já é um Zod enum.
+// const contentTypeZodEnum = z.nativeEnum(PrismaContentTypeEnum); // REMOVIDO
 
 // Schema para UserProfile (usado para criação no onboarding)
 // Prisma.UserProfileUncheckedCreateInput requer userId e email.
@@ -21,7 +29,7 @@ export type OnboardingData = z.infer<typeof onboardingSchema>;
 // Alinhado com Prisma.ContentUncheckedCreateInput
 export const insertContentSchema = z.object({
   userId: z.string().min(1, "User ID é obrigatório"),
-  type: contentTypeZodEnum, // Usa o Zod enum derivado do Prisma enum
+  type: ContentTypeEnum, // ATUALIZADO para usar ContentTypeEnum local
   title: z.string().optional(),
   body: z.string().min(1, "Corpo do conteúdo é obrigatório"),
   tone: z.string().optional(),
@@ -35,7 +43,7 @@ export type InsertContentData = z.infer<typeof insertContentSchema>;
 // e depois são transformados.
 export const contentGenerationSchema = z.object({
   userId: z.string().min(1, "User ID é obrigatório para geração"), // Adicionado userId aqui
-  type: contentTypeZodEnum,
+  type: ContentTypeEnum, // ATUALIZADO para usar ContentTypeEnum local
   objective: z.string().min(1, { message: "Selecione o objetivo" }),
   tone: z.string().min(1, { message: "Selecione o tom de voz" }),
   theme: z.string().min(1, { message: "Digite o tema ou título" }), // 'theme' pode ser usado para gerar o 'title' e/ou 'body'
