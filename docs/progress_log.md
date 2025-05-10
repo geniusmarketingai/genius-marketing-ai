@@ -267,3 +267,32 @@
 *   **Revisão das Variáveis de Ambiente no Vercel:** Confirmar novamente se todas as variáveis de ambiente (`DATABASE_URL`, `OPENAI_API_KEY`, etc.) estão corretamente configuradas no painel do Vercel para o ambiente de produção.
 *   **Continuar com o Desenvolvimento:** Prosseguir com o desenvolvimento de novas funcionalidades e casos de uso conforme o roadmap do projeto Genius Marketing AI.
 *   **Monitoramento:** Acompanhar os logs do Vercel para quaisquer novos problemas que possam surgir em runtime.
+
+---
+## 2024-07-27: Investigação e Correção da Página de Login
+
+**Sumário Técnico do Progresso:**
+
+*   Analisada a funcionalidade de login via Magic Link e o comportamento dos botões "Criar conta" e "Testar Conexão Supabase".
+*   **Magic Link e `ERR_CONNECTION_REFUSED`:**
+    *   Identificado que o erro `ERR_CONNECTION_REFUSED` ao clicar no link de confirmação do Supabase (com `redirect_to=http://localhost:3000`) ocorre porque o servidor de desenvolvimento local não está ativo/acessível.
+    *   A configuração `emailRedirectTo: window.location.href` no `client/src/hooks/useAuth.tsx` está correta, fazendo com que o link de redirecionamento no e-mail corresponda à URL onde o processo de login foi iniciado.
+    *   A opção `shouldCreateUser: true` também está ativa, permitindo que o fluxo de Magic Link crie novos usuários.
+*   **Botão "Criar conta":**
+    *   O botão era um link `<a>` com `href="#"` sem funcionalidade JavaScript associada, causando apenas a adição de `#` à URL.
+    *   Foi removido do `client/src/components/Auth.tsx`, pois o fluxo principal de Magic Link já cobre a criação de contas.
+*   **Botão "Testar Conexão Supabase":**
+    *   O botão e sua respectiva função `testSupabaseConnection` foram removidos do `client/src/components/Auth.tsx`.
+
+**Decisões Chave e Justificativas:**
+
+*   Manter `emailRedirectTo: window.location.href` por ser a abordagem correta, garantindo que o redirecionamento funcione tanto em desenvolvimento (quando o servidor local estiver ativo) quanto em produção.
+*   Remoção do link "Criar conta" para simplificar a interface, dado que a funcionalidade principal de Magic Link já contempla o cadastro de novos usuários.
+*   Remoção do botão de teste de conexão por não ser uma funcionalidade destinada ao usuário final.
+
+**Próximos Passos Sugeridos:**
+
+*   **Testar o Fluxo de Login em Produção:** O usuário deve testar o login via Magic Link acessando diretamente `https://genius-marketing-ai.vercel.app/` para garantir que o redirecionamento funcione conforme o esperado.
+*   **Verificar Configurações no Supabase:** Confirmar se o "Site URL" no painel do Supabase (Authentication > URL Configuration) está definido como `https://genius-marketing-ai.vercel.app/`.
+*   **Resolver Problema do `npm run dev`:** Investigar e corrigir o erro de "recursive invocation" para habilitar o desenvolvimento local eficiente.
+*   Proceder com outras tarefas de desenvolvimento conforme priorizado.

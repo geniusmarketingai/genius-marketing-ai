@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,11 +26,26 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   const form = useForm<OnboardingFormValues>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
+      userId: '',
+      email: '',
+      name: '',
       businessType: '',
       targetPersona: '',
       channels: [],
     },
   });
+  
+  useEffect(() => {
+    if (user?.id && user?.email) {
+      form.reset({
+        ...form.getValues(), 
+        userId: user.id,
+        email: user.email,
+        name: form.getValues().name || user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [user, form]);
   
   const loading = form.formState.isSubmitting;
   
@@ -57,13 +72,8 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   };
   
   const onSubmit = async (data: OnboardingFormValues) => {
-    if (!user?.id) return;
-    
     try {
-      await apiRequest('POST', '/api/profile', {
-        ...data,
-        userId: user.id,
-      });
+      await apiRequest('POST', '/api/profile', data);
       
       toast({
         title: "Perfil salvo com sucesso!",
@@ -73,9 +83,18 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       onComplete();
     } catch (error) {
       console.error("Error saving profile:", error);
+      let errorMessage = "Tente novamente mais tarde.";
+      if (error && typeof error === 'object' && 'response' in error && error.response && 
+          typeof error.response === 'object' && 'data' in error.response && error.response.data &&
+          typeof error.response.data === 'object' && 'message' in error.response.data) {
+        errorMessage = String((error.response.data as any).message);
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro ao salvar perfil",
-        description: "Tente novamente mais tarde.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
