@@ -146,7 +146,7 @@
 
 **Decisões Chave e Justificativas:**
 
-*   Utilização do Vercel para CI/CD do frontend, aproveitando sua integração nativa com GitHub e otimizações para frameworks como Vite.
+*   Utilização do Vercel para CI/CD do frontend, aproveitando sua integração nativa com GitHub e otimizações para frameworks como Vite..
 *   Manutenção da simplicidade inicial, adiando a criação de `vercel.json` até que seja estritamente necessário.
 *   Reforço da responsabilidade do usuário em garantir a integridade e completude das variáveis de ambiente no Vercel, por serem dados sensíveis e específicos do ambiente.
 
@@ -237,3 +237,33 @@
     *   Analisar logs de build e runtime no Vercel para depuração.
 *   **Configurar GitHub Actions (CI):** Implementar linting e testes automatizados.
 *   **Desenvolvimento das Funcionalidades Core:** Continuar com a implementação dos casos de uso da aplicação.
+
+---
+## 2024-07-26: Correção de Erros de Build no Vercel (Prisma Client e TypeScript)
+
+**Sumário Técnico do Progresso:**
+
+*   Identificado e corrigido um erro de build no Vercel onde o Vite tentava importar uma versão do Prisma Client (`@prisma/client/index-browser`) para o bundle do frontend.
+    *   **Causa Raiz:** O arquivo `shared/schema.ts` importava `ContentType` de `@prisma/client` e era, por sua vez, importado por código do frontend através de um alias (`@shared`) no `vite.config.ts`.
+    *   **Solução:** Refatorado `shared/schema.ts` para remover a dependência direta de `@prisma/client`. O enum `ContentType` foi definido localmente usando `z.enum()` com os mesmos valores do `schema.prisma`.
+*   Identificado e corrigido um erro TypeScript na compilação das Serverless Functions (`api/_lib/routes.ts`) durante o deploy no Vercel.
+    *   **Causa Raiz:** Na rota `POST /api/generate`, o `req.body` (contendo `theme` e outros dados do formulário de frontend) estava sendo validado incorretamente com `insertContentSchema` (que não define `theme`), causando um erro ao tentar desestruturar `theme` do resultado da validação.
+    *   **Solução:** Alterada a validação na rota `POST /api/generate` para usar `contentGenerationSchema` (que define `theme` e corresponde aos dados do formulário). O objeto `contentToSave` (para o banco) é então construído corretamente, mapeando os campos de `contentGenerationSchema` para `insertContentSchema`, e uma validação final com `insertContentSchema` foi adicionada como salvaguarda.
+*   Após aplicar as correções e realizar novo commit/push, o deploy no Vercel (commit `ead621f`) foi concluído com sucesso, sem erros de build do Vite ou TypeScript.
+
+**Decisões Chave e Justificativas:**
+
+*   Desacoplamento de `shared/schema.ts` do `@prisma/client` para evitar que o Vite processe dependências de backend no bundle do frontend. Isso mantém a pasta `shared` utilizável por ambos os contextos (frontend e backend) sem causar conflitos de build.
+*   Utilização do schema Zod correto (`contentGenerationSchema`) para validar os dados de entrada da API `/api/generate`, garantindo a correta tipagem e acesso aos campos enviados pelo cliente (como `theme`).
+*   Adição de uma etapa de validação secundária com `insertContentSchema` antes de salvar no banco como uma medida de robustez para a lógica de transformação de dados.
+
+**Próximos Passos Sugeridos:**
+
+*   **Testes Funcionais Exaustivos:**
+    *   Testar a funcionalidade de geração de conteúdo de ponta a ponta (frontend para backend, incluindo chamada OpenAI e salvamento no banco).
+    *   Verificar se os dados são salvos corretamente na tabela `content_history`.
+    *   Confirmar se os créditos do usuário são deduzidos após a geração de conteúdo.
+    *   Testar outras funcionalidades da API que possam ter sido afetadas indiretamente (embora improvável).
+*   **Revisão das Variáveis de Ambiente no Vercel:** Confirmar novamente se todas as variáveis de ambiente (`DATABASE_URL`, `OPENAI_API_KEY`, etc.) estão corretamente configuradas no painel do Vercel para o ambiente de produção.
+*   **Continuar com o Desenvolvimento:** Prosseguir com o desenvolvimento de novas funcionalidades e casos de uso conforme o roadmap do projeto Genius Marketing AI.
+*   **Monitoramento:** Acompanhar os logs do Vercel para quaisquer novos problemas que possam surgir em runtime.
