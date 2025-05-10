@@ -69,27 +69,6 @@ export default function Auth() {
     }
   };
 
-  const testSupabaseConnection = async () => {
-    try {
-      console.log("Testing Supabase connection");
-      const { data, error } = await supabase.from('non_existent_table').select('*').limit(1);
-      console.log("Supabase test response:", { data, error });
-      
-      toast({
-        title: "Supabase connection test",
-        description: error ? `Error: ${error.message}` : "Connection successful!",
-        variant: error ? "destructive" : "default",
-      });
-    } catch (err) {
-      console.error("Supabase test error:", err);
-      toast({
-        title: "Supabase test error",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6">
       <Card className="w-full max-w-md">
@@ -129,21 +108,6 @@ export default function Auth() {
                 </>
               )}
             </Button>
-            
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              Novo por aqui? <a href="#" className="text-primary hover:text-primary/90 font-medium">Criar conta</a>
-            </p>
-            
-            <div className="mt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={testSupabaseConnection}
-                className="w-full"
-              >
-                Testar Conexão Supabase
-              </Button>
-            </div>
           </form>
         </CardContent>
       </Card>
