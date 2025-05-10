@@ -1,0 +1,151 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 🧩 Local Rule — Genius Marketing AI  
+_Aligned with Vibe Coding Architecture + Tactical DDD_
+
+> **Referências Arquiteturais:**  
+> 📚 [Arquitetura Vibe Coding](mdc:../../docs/vibe-coding/arquitetura-vibe-coding.md) 
+> 🧾 [Regras Vibe Coding](mdc:../../docs/vibe-coding/regras-vibe-coding.md) 
+
+Validate that the following documents are active in your context window:
+- arquitetura-vibecoding.md
+- regras-vibecoding.md
+- local-rules-genius-marketing-ai.mdc
+- progress_log.md
+
+Also validate that the MCPs server-sequential-thinking and context7 are active throughout the entire flow.
+-Do not allow the agent to make architectural decisions without first using server-sequential-thinking.
+-Every reference to libraries, documentation, or external integrations must trigger context7.
+-Avoid vague instructions: always request structured step-by-step actions.
+-With each agent delivery, reinforce the update of progress_log.md.
+
+
+```ts
+// 🔐 LOCAL RULE: GENIUS MARKETING AI – PROJECT CONTEXT
+
+▸ Use Domain-Driven Design with explicit bounded contexts:
+   - auth
+   - profile
+   - content-generation
+   - credits
+   - metrics
+   - integrations
+
+▸ Each domain must contain:
+   - Entities (with validation logic)
+   - Value Objects (reused by rules)
+   - Use Cases (Application Services)
+   - Interfaces (Ports) decoupled from adapters
+
+▸ Keep strict boundary isolation:
+   - Never share domain logic across bounded contexts
+   - Cross-context communication via:
+     ▸ Versioned REST APIs
+     ▸ Typed DTOs
+     ▸ Domain Events (asynchronous)
+
+// 🔐 DATA MODEL & SECURITY
+
+▸ Always use `userId` as the ownership key in all tables  
+▸ Enable Row Level Security (RLS) on:
+   - content_history
+   - user_profile
+   - credits
+
+▸ Use Prisma `@@map` to keep schema naming aligned with Supabase  
+▸ Do not mutate RLS policies without architectural review
+
+// ⚙️ CONTENT GENERATION FLOW (ATOMIC RULE)
+
+▸ Every generation request must follow a transactional flow:
+   - validate credit balance
+   - send prompt to OpenAI
+   - save content to DB
+   - deduct 1 credit
+   - return result
+
+▸ If any step fails, rollback the entire operation
+
+// 🧪 TESTING REQUIREMENTS
+
+▸ Enforce layered test coverage:
+   - Domain Layer → 100% unit test
+   - Application Layer → integration test per use case
+   - API Layer → E2E (Cypress/Postman) for core flows
+
+▸ Every PR must include:
+   - Corresponding test(s)
+   - Test for invalid/edge case
+   - CI pass before merge
+
+// 📐 CONTRACTS & SCHEMA VERSIONING
+
+▸ For every exposed service or integration:
+   - Define DTOs or input/output schemas
+   - Version public APIs (/v1/...)
+   - Validate all inputs at boundary level
+   - Document via OpenAPI or JSON Schema
+
+▸ Backwards compatibility must be guaranteed unless explicitly versioned
+
+// 🧠 BRAZILIAN CONTEXT AWARENESS (AI PROMPTS)
+
+▸ All AI-generated content must:
+   - Be written in Brazilian Portuguese
+   - Match the tone and style of each persona/niche
+   - Include regional idioms, slang, and expressions
+
+▸ Prompt templates must be reusable and testable via content unit tests
+
+// 🖥️ FRONTEND UX RULES (WIREFRAME-BOUND)
+
+▸ Follow approved wireframes strictly:
+   - Mobile-first (Tailwind `w-full`, stacked layouts)
+   - Fixed action buttons on mobile
+   - Accessible components (keyboard nav, contrast, labels)
+
+▸ No UI or UX flow should deviate without UX lead or stakeholder validation
+
+// 🧼 CODE & PROJECT HYGIENE
+
+▸ Never introduce external libraries or services without architectural validation  
+▸ If new tech replaces old, the legacy implementation must be removed
+
+▸ All relevant decisions, migrations, or architecture changes:
+   - Must be logged in `progress_log.md`
+   - Include justification, impact scope, and proposed rollback
+
+▸ Refactor anything > 300 lines or violating SRP
+
+// ✅ GOAL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+This rule guarantees domain cohesion, cultural alignment, architectural stability, and system scalability — in the spirit of Vibe Coding.

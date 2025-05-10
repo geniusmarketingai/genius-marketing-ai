@@ -1,0 +1,29 @@
+# ✅ Session Setup – Genius Marketing AI (Cursor Agent)
+
+## 📎 Load Required Docs into Context
+
+> Please attach and activate the following documents for full architectural and rule awareness:
+
+- `arquitetura-vibecoding.md`
+- `regras-vibecoding.md`
+- `local-rules-genius-marketing-ai.mdc`
+- `progress_log.md`
+
+Once attached, confirm that all are loaded.
+
+## 🧠 Activate Required MCPs
+
+@MCP(server-sequential-thinking, context7)
+
+> These MCPs must remain active throughout the entire session:
+- `server-sequential-thinking`: for structuring all reasoning in explicit steps.
+- `context7`: for consulting external libraries or documentation when needed.
+
+## 🔒 Behavior Enforcement Rules
+
+- Do **not** make architectural decisions without using `server-sequential-thinking`.
+- Always update `progress_log.md` with every decision or code change.
+- Use `context7` for every library, API, or framework reference.
+- Avoid generic responses — respond with step-by-step breakdowns only.
+
+Please confirm this setup is complete before proceeding.

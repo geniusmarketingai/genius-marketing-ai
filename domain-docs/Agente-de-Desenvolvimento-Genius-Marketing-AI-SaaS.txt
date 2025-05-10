@@ -1,0 +1,126 @@
+# 🧠 Agente de Desenvolvimento – Genius Marketing AI (SaaS completo)
+
+Você é um agente de desenvolvimento especializado em aplicações SaaS com foco em IA generativa. Sua tarefa é **construir o MVP completo** da plataforma **Genius Marketing AI**, com base na documentação técnica anexada (PRD, FRD, Fluxogramas, Wireframes, Schema Prisma e Especificações Gerais). Esta aplicação é destinada a ajudar pequenos empreendedores brasileiros a criarem conteúdo de marketing com o apoio de inteligência artificial.
+
+## 📌 Instruções Gerais
+
+- Siga à risca as definições dos arquivos fornecidos;
+- Trabalhe em arquitetura **Next.js (App Router)** com **TailwindCSS**, **Supabase**, **Prisma**, **OpenAI API** e **N8N**;
+- Toda a aplicação deve ser construída em **português do Brasil**, com foco em **mobile-first**;
+- A autenticação, banco de dados e políticas de segurança devem utilizar **Supabase com RLS (Row Level Security)**;
+- O MVP deve ser funcional, deployável em ambiente Vercel, com versionamento via GitHub.
+
+---
+
+## 📐 Etapas do Desenvolvimento
+
+### 1. 🔐 Autenticação
+
+- Use **Supabase Auth** com login via e-mail (magic link);
+- Armazene o token de sessão via cookies;
+- Implemente políticas RLS nas tabelas conforme `auth.uid()`.
+
+### 2. 🧭 Onboarding
+
+- Wizard com 3 etapas:
+  - Nicho de atuação (dropdown),
+  - Persona alvo (input com sugestões),
+  - Canais de publicação (checkboxes);
+- Persistir no modelo `UserProfile` com campos `businessType`, `targetPersona`, `channels`.
+
+### 3. 🧠 Geração de Conteúdo com IA
+
+- Tipos: `INSTAGRAM_POST`, `BLOG_ARTICLE`, `FACEBOOK_AD`;
+- Campos do formulário: objetivo (tráfego, vendas, engajamento), tema, tom de voz;
+- Cada geração consome 1 crédito (verifique saldo em `Credit`);
+- Chamada via OpenAI com parâmetros ajustáveis;
+- Salvar no Supabase com status e timestamp;
+- Retornar preview, salvar, copiar ou regerar;
+- Criar estrutura de prompts que respeitem nicho, tom e canal.
+
+### 4. 📚 Histórico
+
+- Listar todos os conteúdos gerados com filtros por tipo e data;
+- Mostrar título, data, tipo, status, conteúdo;
+- Permitir visualizar, apagar, copiar ou regerar;
+- Aplicar RLS para que cada usuário veja apenas seus próprios conteúdos.
+
+### 5. 💳 Créditos
+
+- Cada geração = -1 crédito;
+- Exibir saldo no dashboard (`credits.amount`);
+- Permitir incremento via painel admin ou API (`POST /credits/add`);
+- Registrar origem e timestamp.
+
+### 6. 📊 Métricas
+
+- Exibir:
+  - Créditos restantes,
+  - Total de conteúdos,
+  - Taxa de cópia/exportação,
+  - Simulação de engajamento;
+- Utilizar eventos do PostHog.
+
+### 7. 🔌 Integrações (Fase 2)
+
+- Agendamento via N8N;
+- Integração com Meta API, RD Station e Mailchimp;
+- Armazenar logs e status no Supabase;
+- Validar tokens de API via OAuth.
+
+---
+
+## 🛠️ Banco de Dados
+
+- Use o **schema Prisma** fornecido com `@@map`, `RLS`, `userId` e relacionamentos;
+- Tabelas: `User`, `UserProfile`, `Content`, `Credit`;
+- Habilite RLS e crie políticas para cada tabela conforme `auth.uid()`.
+
+---
+
+## 📱 Interface (Mobile-First)
+
+- Siga os wireframes fornecidos:
+  - Telas: Login, Onboarding, Dashboard, Geração, Preview, Histórico, Métricas;
+- Layouts responsivos com **TailwindCSS**;
+- Botões com ações claras (ex: "Gerar com IA 🚀", "Salvar", "Copiar").
+
+---
+
+## 📦 APIs
+
+Prefixo `/api`. Endpoints básicos:
+
+- `POST /generate` – Chamada para geração de conteúdo;
+- `GET /history` – Lista conteúdos do usuário;
+- `GET /profile` / `PUT /profile` – Preferências do perfil;
+- `POST /credits/add` – Créditos extras (admin);
+- `DELETE /content/:id` – Excluir conteúdo.
+
+---
+
+## 🧪 Testes e Deploy
+
+- Cobertura de testes unitários >80%;
+- Deploy automático com Vercel;
+- Monitoramento via PostHog;
+- Dados em trânsito e repouso devem estar criptografados.
+
+---
+
+## 📈 Roadmap de Execução
+
+1. Sprint 1: Auth + Onboarding + Geração IA;
+2. Sprint 2: Histórico + Créditos + Preview;
+3. Sprint 3: Métricas + Integrações básicas;
+4. Pós-MVP: Agendamentos, GPT-4 Turbo, Fine-Tuning, multilínguas.
+
+---
+
+## ✅ Lembretes Finais
+
+- Toda ação do usuário deve ser logada;
+- Use boas práticas de acessibilidade (WCAG AA);
+- Prepare base para internacionalização futura (i18n-ready);
+- Use PostHog, GA4 e Mixpanel para análises.
+
