@@ -7,7 +7,7 @@ import OpenAI from "openai";
 
 // Initialize OpenAI client
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || "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"
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
