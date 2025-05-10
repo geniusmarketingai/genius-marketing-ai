@@ -1,8 +1,8 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
+// Removido: import { createServer, type Server } from "http"; // Não precisamos criar o servidor HTTP aqui
+import { storage } from "./storage"; // Assumindo que storage.ts estará em api/_lib/storage.ts
 import { z } from "zod";
-import { insertContentSchema, insertCreditSchema, onboardingSchema } from "../shared/schema";
+import { insertContentSchema, insertCreditSchema, onboardingSchema } from "../../shared/schema"; // Ajustado o caminho
 import OpenAI from "openai";
 
 // Initialize OpenAI client
@@ -10,7 +10,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-export async function registerRoutes(app: Express): Promise<Server> {
+// A função agora apenas registra rotas, não retorna um Server
+export function registerRoutes(app: Express): void { 
   // API routes prefix with /api
   
   // Profile endpoints
@@ -252,50 +253,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Metrics endpoint
-  app.get("/api/metrics", async (req, res) => {
-    try {
-      const userId = req.query.userId as string;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const contentCount = await storage.getContentCount(userId);
-      const typeDistribution = await storage.getContentTypeDistribution(userId);
-      const credits = await storage.getUserCredits(userId);
-      
-      return res.json({
-        contentCount,
-        typeDistribution,
-        credits: credits?.amount || 0,
-      });
-    } catch (error) {
-      console.error("Error fetching metrics:", error);
-      return res.status(500).json({ message: "Erro ao buscar métricas" });
-    }
+  // Health check endpoint (optional, but good for Vercel)
+  app.get("/api/health", (req, res) => {
+    res.status(200).send("OK");
   });
-
-  // User registration endpoint
-  app.post("/api/user", async (req, res) => {
-    try {
-      const { id, email } = req.body;
-      
-      if (!id || !email) {
-        return res.status(400).json({ message: "Dados inválidos" });
-      }
-      
-      const user = await storage.createUser({ id, email });
-      
-      // Give initial credits to new users
-      await storage.updateUserCredits(id, 10, "initial");
-      
-      return res.json(user);
-    } catch (error) {
-      console.error("Error creating user:", error);
-      return res.status(500).json({ message: "Erro ao criar usuário" });
-    }
-  });
-
-  const httpServer = createServer(app);
-  return httpServer;
-}
+} 
