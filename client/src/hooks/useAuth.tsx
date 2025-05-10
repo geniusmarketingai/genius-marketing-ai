@@ -98,12 +98,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   // Magic link sign in
   const signInWithMagicLink = async (email: string) => {
-    return supabase.auth.signInWithOtp({
+    console.log("Magic link sign in with origin:", window.location.origin);
+    const result = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: window.location.href, // Use the current URL instead of origin
+        shouldCreateUser: true,
       },
     });
+    console.log("Magic link result:", result);
+    return result;
   };
   
   // Sign out

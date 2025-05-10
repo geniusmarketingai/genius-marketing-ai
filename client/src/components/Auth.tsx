@@ -38,9 +38,24 @@ export default function Auth() {
         throw new Error(response.error.message);
       }
       
+      // Construir um link de login direto (para o usuário copiar se precisar)
+      const loginUrl = `${window.location.origin}/login#email=${encodeURIComponent(email)}`;
+      
       toast({
         title: "Magic link enviado!",
-        description: "Verifique seu e-mail para fazer login",
+        description: 
+          <div className="space-y-2">
+            <p>Verifique seu e-mail para fazer login</p>
+            <p className="text-xs text-muted-foreground">
+              Se tiver problemas, use este link: 
+              <button 
+                onClick={() => { navigator.clipboard.writeText(loginUrl); toast({ description: "Link copiado!" }); }}
+                className="underline ml-1 cursor-pointer"
+              >
+                Copiar link de login
+              </button>
+            </p>
+          </div>,
       });
     } catch (error) {
       console.error("Auth error:", error);
