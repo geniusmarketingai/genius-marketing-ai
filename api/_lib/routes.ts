@@ -2,7 +2,7 @@ import type { Express } from "express";
 // Removido: import { createServer, type Server } from "http"; // Não precisamos criar o servidor HTTP aqui
 import { storage } from "./storage"; // Assumindo que storage.ts estará em api/_lib/storage.ts
 import { z } from "zod";
-import { insertContentSchema, insertCreditSchema, onboardingSchema } from "../../shared/schema"; // Ajustado o caminho
+import { insertContentSchema, insertCreditSchema, onboardingSchema, contentGenerationSchema } from "../../shared/schema"; // Ajustado o caminho
 import OpenAI from "openai";
 // Importar ContentType do Prisma para uso explícito se necessário
 import { ContentType } from '@prisma/client';
@@ -105,11 +105,12 @@ export function registerRoutes(app: Express): void {
   // Content generation endpoint
   app.post("/api/generate", async (req, res) => {
     try {
-      // O insertContentSchema deve ser compatível com Prisma.ContentUncheckedCreateInput
-      const parseResult = insertContentSchema.safeParse(req.body);
+      // ALTERADO: Usar contentGenerationSchema para validar os dados do formulário
+      const parseResult = contentGenerationSchema.safeParse(req.body); 
       if(!parseResult.success) {
         return res.status(400).json({ message: "Dados para geração inválidos", errors: parseResult.error.format() });
       }
+      // Agora 'theme' estará disponível em parseResult.data
       const { userId, type, objective, tone, theme } = parseResult.data;
 
       if (!userId) {
@@ -164,23 +165,31 @@ export function registerRoutes(app: Express): void {
       
       const generatedContentText = completion.choices[0].message.content;
       
-      let title = theme;
-      if (generatedContentText && !title) {
+      let generatedTitle = theme; // Usar 'theme' como base para o título
+      if (generatedContentText && !generatedTitle) {
         const lines = generatedContentText.split('\n');
-        title = lines[0].replace(/^#+ /, '').slice(0, 100);
+        generatedTitle = lines[0].replace(/^#+ /, '').slice(0, 100);
       }
       
+      // contentToSave usará os campos de insertContentSchema
       const contentToSave = {
         userId,
-        type,
-        title: title || "Conteúdo Gerado",
+        type, // type vem de contentGenerationSchema, que usa o mesmo ContentTypeEnum
+        title: generatedTitle || "Conteúdo Gerado",
         body: generatedContentText || "",
-        tone,
-        objective,
+        tone, // tone vem de contentGenerationSchema
+        objective, // objective vem de contentGenerationSchema
         status: "active",
       };
 
-      const savedContent = await storage.saveContent(contentToSave);
+      // Validar contentToSave com insertContentSchema antes de salvar (opcional, mas recomendado)
+      const finalValidation = insertContentSchema.safeParse(contentToSave);
+      if (!finalValidation.success) {
+        console.error("Erro de validação interna antes de salvar:", finalValidation.error.format());
+        return res.status(500).json({ message: "Erro interno ao preparar dados para salvar."});
+      }
+
+      const savedContent = await storage.saveContent(finalValidation.data); // Salvar os dados validados
       await storage.updateUserCredits(userId, -1, "generation");
       
       return res.status(201).json({ 
