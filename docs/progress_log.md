@@ -729,7 +729,7 @@
 
 **Sumário Técnico do Progresso:**
 
-*   Com base na análise do `prisma/schema.prisma` e dos erros `P2022`, foi identificada uma provável divergência entre nomes de campos camelCase no Prisma (ex: `userId`, `createdAt`) e nomes de colunas snake_case no banco de dados Supabase (ex: `user_id`, `created_at`).
+*   Com base na análise do `prisma/schema.prisma` e dos erros `P2022`, foi identificada uma provável divergência entre nomes de campos camelCase no Prisma (ex: `userId`, `createdAt`) e nomes de colunas snake_case no banco de dados (ex: `user_id`, `created_at`).
 *   O arquivo `prisma/schema.prisma` foi modificado para incluir atributos `@map("nome_da_coluna_snake_case")` nos seguintes campos e modelos:
     *   `UserProfile`: `userId`, `createdAt`, `updatedAt`
     *   `Content`: `userId`, `createdAt`, `updatedAt`
@@ -758,21 +758,43 @@
 *   Após o mapeamento anterior de `userId`, `createdAt`, e `updatedAt`, os erros `P2022` persistiram, mas mudaram para o campo `businessType` no modelo `UserProfile`.
 *   Os logs indicaram que a coluna `businessType` (ou `user_profile.businessType`) não existe no banco, sugerindo a necessidade de mapeá-la para `business_type`.
 *   O arquivo `prisma/schema.prisma` foi modificado para adicionar `@map("business_type")` ao campo `businessType` do modelo `UserProfile`.
-*   Observado que as chamadas para `/api/user` estão retornando status 200, indicando sucesso nas operações com o modelo `User`.
+*   As chamadas para `/api/user` continuam retornando status 200.
 
 **Decisões Chave e Justificativas:**
 
-*   Continuação da estratégia de usar `@map` para alinhar os nomes de campos do Prisma (camelCase) com os nomes de colunas do banco de dados (snake_case).
+*   Aplicação consistente da estratégia de usar `@map` para alinhar os nomes de campos do Prisma com os nomes de colunas snake_case do banco de dados.
 
 **Próximos Passos Sugeridos:**
 
 *   **Usuário:**
     *   Realizar um novo deploy da aplicação no Vercel.
     *   Testar as funcionalidades de criação e atualização de perfil.
-    *   Observar se o erro P2022 para `businessType` foi resolvido e se surgem erros para outros campos (ex: `targetPersona`).
+    *   Verificar se os erros `P2022` para `businessType` foram resolvidos. Se o modelo `UserProfile` tiver mais campos que seguem a convenção snake_case no banco, erros similares podem surgir para eles. O campo `channels` é um candidato a ser observado, embora seu tipo array possa ter um comportamento diferente.
 *   **Assistente:**
     *   Aguardar o resultado dos testes.
-    *   Se novos erros P2022 surgirem para outros campos, aplicar o mesmo mapeamento `@map("nome_snake_case")`.
-    *   Se todos os erros de mapeamento forem resolvidos e os problemas persistirem, investigar outras possíveis causas.
+    *   Se todos os erros de mapeamento de colunas no modelo `UserProfile` forem resolvidos, as operações de criação e leitura de perfil devem funcionar. Caso contrário, e se não houver mais erros P2022, investigar outras possíveis causas.
+
+---
+## 2024-07-31: Mapeamento do Campo `targetPersona` no Schema Prisma
+
+**Sumário Técnico do Progresso:**
+
+*   Após o mapeamento de `businessType`, os erros `P2022` passaram a indicar a ausência da coluna `targetPersona` (ou `user_profile.targetPersona`) no banco de dados.
+*   O arquivo `prisma/schema.prisma` foi modificado para adicionar `@map("target_persona")` ao campo `targetPersona` do modelo `UserProfile`.
+*   As chamadas para `/api/user` continuam retornando status 200.
+
+**Decisões Chave e Justificativas:**
+
+*   Aplicação consistente da estratégia de usar `@map` para alinhar os nomes de campos do Prisma com os nomes de colunas snake_case do banco de dados.
+
+**Próximos Passos Sugeridos:**
+
+*   **Usuário:**
+    *   Realizar um novo deploy da aplicação no Vercel.
+    *   Testar as funcionalidades de criação e atualização de perfil.
+    *   Verificar se os erros `P2022` para `targetPersona` foram resolvidos. Se o modelo `UserProfile` tiver mais campos que seguem a convenção snake_case no banco, erros similares podem surgir para eles. O campo `channels` é um candidato a ser observado, embora seu tipo array possa ter um comportamento diferente.
+*   **Assistente:**
+    *   Aguardar o resultado dos testes.
+    *   Se todos os erros de mapeamento de colunas no modelo `UserProfile` forem resolvidos, as operações de criação e leitura de perfil devem funcionar. Caso contrário, e se não houver mais erros P2022, investigar outras possíveis causas.
 
 ---

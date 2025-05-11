@@ -13,7 +13,7 @@ model UserProfile {
   email          String   @unique
   name           String?
   businessType   String?  @map("business_type")
-  targetPersona  String?
+  targetPersona  String?  @map("target_persona")
   channels       String[]
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
