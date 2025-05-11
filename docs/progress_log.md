@@ -360,47 +360,6 @@
 *   **Implementar Tela/Fluxo de Criação de Conta:** Criar uma nova rota/componente para o cadastro de usuários com email e senha.
 
 ---
-## 2024-07-28: Implementação Inicial da Nova Lógica de Autenticação
-
-**Sumário Técnico do Progresso:**
-
-*   **`client/src/hooks/useAuth.tsx` atualizado:**
-    *   Adicionadas as funções `signInWithPassword(email, password)`, `signUp(email, password)` e `signInWithOAuth(provider)` ao hook.
-    *   Estas funções utilizam os respectivos métodos do `supabase.auth` (`signInWithPassword`, `signUp`, `signInWithOAuth`) para interagir com o Supabase.
-    *   O tipo `AuthContextType` e o valor padrão do contexto foram atualizados para incluir estas novas funções.
-    *   Para `signUp`, a opção `emailRedirectTo` foi comentada, pois o serviço de e-mail do Supabase foi desabilitado pelo usuário. É recomendado que a *exigência* de confirmação de e-mail também seja desabilitada no painel do Supabase (Authentication > Providers > Email > desmarcar "Confirm email") para um fluxo de cadastro direto.
-    *   Para `signInWithOAuth`, foi adicionado um comentário sobre a necessidade de configurar corretamente os Client IDs/Secrets no painel do Supabase para que funcione.
-*   **`client/src/components/Auth.tsx` atualizado (Rascunho Inicial da UI):**
-    *   Adicionados inputs para e-mail e senha.
-    *   Adicionado botão "Entrar" que chama `signInWithPassword`.
-    *   Adicionado botão "Criar Nova Conta" que chama `signUp`.
-    *   Adicionados botões para login com "Google" e "Facebook" que chamam `signInWithOAuth` com o provedor correspondente.
-    *   Implementados handlers básicos com `useState` para `email`, `password`, e `isLoading`.
-    *   Utilizado `useToast` para feedback visual de sucesso/erro nas operações.
-    *   A UI é básica e funcional, pronta para refinamentos futuros e adição de ícones/estilização.
-
-**Decisões Chave e Justificativas:**
-
-*   Implementação das funções de autenticação diretamente no `useAuth` para centralizar a lógica de interação com o Supabase Auth.
-*   Criação de uma UI de login funcional no `Auth.tsx` que permite testar os novos fluxos de login e cadastro.
-*   Lembrete sobre a configuração dos provedores OAuth no Supabase e a desativação da exigência de confirmação de e-mail para o fluxo de `signUp` funcionar sem envio de e-mails.
-
-**Próximos Passos Sugeridos:**
-
-*   **Testar os Novos Fluxos:**
-    *   Testar o cadastro de um novo usuário com email e senha.
-    *   Testar o login com um usuário existente (email e senha).
-    *   **Configurar Provedores OAuth no Supabase:** O usuário DEVE configurar corretamente os Client IDs e Secrets para Google e Facebook no painel do Supabase (Authentication > Providers) antes de testar o login social.
-    *   Após configuração, testar o login com Google.
-    *   Após configuração, testar o login com Facebook.
-*   **Refinamento da UI/UX:**
-    *   Melhorar a aparência da tela de login (`Auth.tsx`).
-    *   Adicionar ícones aos botões de login social.
-    *   Considerar a separação do formulário de "Criar Conta" para uma rota/modal distinto ou melhorar a UX na mesma tela.
-    *   Implementar validação de formulário mais robusta (ex: com Zod).
-*   **Verificar Configuração de "Confirm email" no Supabase:** O usuário deve confirmar se a opção "Confirm email" está desabilitada em Authentication > Providers > Email no painel do Supabase.
-
----
 ## 2024-07-29: Criação das Páginas de Política de Privacidade e Termos de Uso
 
 **Sumário Técnico do Progresso:**
@@ -430,3 +389,23 @@
 *   O usuário deve substituir o conteúdo placeholder nas páginas `PrivacyPolicy.tsx` e `TermsOfService.tsx` pelos textos legais finais.
 *   Adicionar links para estas páginas no rodapé da aplicação e/ou em outros locais relevantes (ex: durante o processo de cadastro).
 *   Continuar com as demais tarefas de desenvolvimento da aplicação.
+
+---
+## 2024-07-29: Correção de Erro de Build (JSX Syntax)
+
+**Sumário Técnico do Progresso:**
+
+*   Identificado um erro de build nos logs da Vercel: `ERROR: Expected "{" but found "\\"` nos arquivos `client/src/pages/PrivacyPolicy.tsx` e `client/src/pages/TermsOfService.tsx`.
+*   **Causa Raiz:** As props `className` nos componentes React estavam utilizando barras invertidas para escapar as aspas duplas (ex: `className=\"min-h-screen\"`), o que é uma sintaxe incorreta para JSX/TSX e causava falha no parser do esbuild/Vite.
+*   **Correção Aplicada:**
+    *   Modificado `client/src/pages/PrivacyPolicy.tsx` para remover as barras invertidas de escape das strings nas props `className` (ex: `className="min-h-screen"`).
+    *   Modificado `client/src/pages/TermsOfService.tsx` para remover as barras invertidas de escape das strings nas props `className`.
+
+**Decisões Chave e Justificativas:**
+
+*   Correção da sintaxe JSX para garantir que o processo de build do Vite/esbuild possa transpilar os componentes corretamente.
+
+**Próximos Passos Sugeridos:**
+
+*   Realizar um novo deploy na Vercel para verificar se o erro de build foi resolvido.
+*   Continuar com o desenvolvimento da aplicação, focando nos próximos itens do backlog.

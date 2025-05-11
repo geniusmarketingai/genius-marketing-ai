@@ -2,13 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function PrivacyPolicy() {
   return (
-    <div className=\"min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8 flex justify-center\">
-      <Card className=\"w-full max-w-3xl\">
+    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8 flex justify-center">
+      <Card className="w-full max-w-3xl">
         <CardHeader>
-          <CardTitle className=\"text-2xl font-bold text-center\">Política de Privacidade</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Política de Privacidade</CardTitle>
         </CardHeader>
-        <CardContent className=\"prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl mx-auto\">
-          <p className=\"text-muted-foreground text-center mb-6\">
+        <CardContent className="prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl mx-auto">
+          <p className="text-muted-foreground text-center mb-6">
             Última atualização: [INSERIR DATA]
           </p>
 
