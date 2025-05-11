@@ -1,5 +1,5 @@
 import { User, UserProfile, Content, Credit, ContentType, Prisma } from '@prisma/client';
-import { PrismaStorage } from './prisma-storage';
+import { PrismaStorage } from './prisma-storage.js';
 
 export interface IStorage {
   // User operations
