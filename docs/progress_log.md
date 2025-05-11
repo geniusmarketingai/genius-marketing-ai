@@ -409,3 +409,24 @@
 
 *   Realizar um novo deploy na Vercel para verificar se o erro de build foi resolvido.
 *   Continuar com o desenvolvimento da aplicação, focando nos próximos itens do backlog.
+
+---
+## 2024-07-29: Correção de Roteamento SPA na Vercel (Erro 404)
+
+**Sumário Técnico do Progresso:**
+
+*   Identificado erro 404 ao tentar acessar sub-rotas da aplicação (ex: `/privacy-policy`) diretamente no ambiente de produção da Vercel.
+*   **Causa Raiz Provável:** A Vercel, apesar das configurações de `Output Directory` (`dist/public`) para o projeto Vite, não estava tratando todas as solicitações de sub-rotas como parte da Single Page Application (SPA), não servindo o `index.html` principal para que o roteador do lado do cliente (`wouter`) pudesse gerenciá-las.
+*   **Correção Aplicada:**
+    *   Modificado o arquivo `vercel.json` para incluir uma regra de rewrite para o frontend. A regra `{ "source": "/(.*)", "destination": "/index.html" }` foi adicionada após a regra existente para `/api/(.*)`. Esta nova regra garante que todas as solicitações que não são para a API e não correspondem a um arquivo estático existente sejam direcionadas para o `index.html` da SPA.
+
+**Decisões Chave e Justificativas:**
+
+*   Adoção de uma configuração de `rewrites` padrão para SPAs no `vercel.json` para garantir que o roteamento do lado do cliente funcione corretamente em todas as sub-rotas quando acessadas diretamente.
+*   A ordem das regras no `vercel.json` é importante: a regra específica da API (`/api/(.*)`) é processada antes da regra genérica de fallback da SPA (`/(.*)`).
+
+**Próximos Passos Sugeridos:**
+
+*   Realizar um novo deploy na Vercel para aplicar as alterações do `vercel.json`.
+*   Verificar se as sub-rotas (ex: `/privacy-policy`, `/terms-of-service`) agora carregam corretamente sem erros 404.
+*   Continuar com o desenvolvimento da aplicação.
