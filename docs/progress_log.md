@@ -583,6 +583,7 @@
         *   `"allowImportingTsExtensions": false` (para resolver um conflito com a opção herdada quando `noEmit` é `false`).
         *   O arquivo `api/index.ts` já estava utilizando import com extensão `.js` (`import { registerRoutes } from './_lib/routes.js';`).
 *   Um erro de linter persistente no Cursor foi observado para `allowImportingTsExtensions` no `api/tsconfig.json`, apesar das configurações parecerem corretas.
+*   Posteriormente, um novo erro de linter foi identificado e corrigido no `api/tsconfig.json`: a opção `module` foi ajustada para `NodeNext` (com 'N' maiúsculo) para ser compatível com `moduleResolution: NodeNext`.
 
 **Decisões Chave e Justificativas:**
 
@@ -597,3 +598,24 @@
     *   Testar as funcionalidades de login e perfil para confirmar se o erro `FUNCTION_INVOCATION_FAILED` / `exports is not defined` foi resolvido.
 *   Se o erro persistir, analisar detalhadamente os logs do Vercel para entender como os arquivos da API estão sendo compilados e executados no ambiente Vercel.
 *   Se o erro for relacionado ao `allowImportingTsExtensions` no build do Vercel, considerar remover essa linha do `api/tsconfig.json`.
+
+---
+## 2024-07-30: Correção de `ERR_MODULE_NOT_FOUND` para `./storage` na API
+
+**Sumário Técnico do Progresso:**
+
+*   Após novo deploy, os logs de runtime do Vercel indicaram um novo erro: `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/api/_lib/storage' imported from /var/task/api/_lib/routes.js`.
+*   **Causa Raiz Identificada:** O arquivo `api/_lib/routes.ts` estava importando o módulo de storage como `import { storage } from "./storage";` sem a extensão `.js`.
+    Com a configuração de ES Modules nativos no Node.js (`"type": "module"` no `package.json` e `"module": "NodeNext"` no `api/tsconfig.json`), os imports relativos precisam incluir a extensão `.js`.
+*   **Ação de Correção:**
+    *   Modificado o arquivo `api/_lib/routes.ts` para que o import seja `import { storage } from "./storage.js";`.
+
+**Decisões Chave e Justificativas:**
+
+*   Aderência aos requisitos de imports de ES Modules nativos no Node.js, que exigem extensões de arquivo explícitas em imports relativos.
+
+**Próximos Passos Sugeridos:**
+
+*   Realizar um novo deploy no Vercel com a correção no import.
+*   Testar novamente os fluxos de autenticação e perfil para verificar se os erros `FUNCTION_INVOCATION_FAILED` e `ERR_MODULE_NOT_FOUND` foram resolvidos.
+*   Monitorar os logs do Vercel para quaisquer novos problemas.

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 // Removido: import { createServer, type Server } from "http"; // Não precisamos criar o servidor HTTP aqui
-import { storage } from "./storage"; // Assumindo que storage.ts estará em api/_lib/storage.ts
+import { storage } from "./storage.js"; // ADICIONADO .js
 import { z } from "zod";
 import { insertContentSchema, insertCreditSchema, onboardingSchema, contentGenerationSchema, userRegistrationSchema } from "../../shared/schema"; // Ajustado o caminho
 import OpenAI from "openai";
