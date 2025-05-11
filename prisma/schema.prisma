@@ -12,7 +12,7 @@ model UserProfile {
   userId         String   @unique @map("user_id")
   email          String   @unique
   name           String?
-  businessType   String?
+  businessType   String?  @map("business_type")
   targetPersona  String?
   channels       String[]
   createdAt      DateTime @default(now()) @map("created_at")

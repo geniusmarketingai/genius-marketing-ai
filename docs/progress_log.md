@@ -264,7 +264,7 @@
     *   Verificar se os dados são salvos corretamente na tabela `content_history`.
     *   Confirmar se os créditos do usuário são deduzidos após a geração de conteúdo.
     *   Testar outras funcionalidades da API que possam ter sido afetadas indiretamente (embora improvável).
-*   **Revisão das Variáveis de Ambiente no Vercel:** Confirmar novamente se todas as variáveis de ambiente (`DATABASE_URL`, `OPENAI_API_KEY`, etc.) estão corretamente configuradas no painel do Vercel para o ambiente de produção.
+*   **Revisão das Variáveis de Ambiente no Vercel:** Confirmar novamente se todas as variáveis de ambiente (`DATABASE_URL`, `OPENAI_API_KEY`) estão corretamente configuradas no painel do Vercel para o ambiente de produção.
 *   **Continuar com o Desenvolvimento:** Prosseguir com o desenvolvimento de novas funcionalidades e casos de uso conforme o roadmap do projeto Genius Marketing AI.
 *   **Monitoramento:** Acompanhar os logs do Vercel para quaisquer novos problemas que possam surgir em runtime.
 
@@ -749,5 +749,30 @@
 *   **Assistente:**
     *   Aguardar o resultado dos testes do usuário.
     *   Se os erros `P2022` persistirem, investigar se as colunas estão de fato ausentes (e não apenas com nomes diferentes), o que exigiria uma migração para adicioná-las ao banco.
+
+---
+## 2024-07-31: Continuação da Aplicação de `@map` no Schema Prisma (Campo `businessType`)
+
+**Sumário Técnico do Progresso:**
+
+*   Após o mapeamento anterior de `userId`, `createdAt`, e `updatedAt`, os erros `P2022` persistiram, mas mudaram para o campo `businessType` no modelo `UserProfile`.
+*   Os logs indicaram que a coluna `businessType` (ou `user_profile.businessType`) não existe no banco, sugerindo a necessidade de mapeá-la para `business_type`.
+*   O arquivo `prisma/schema.prisma` foi modificado para adicionar `@map("business_type")` ao campo `businessType` do modelo `UserProfile`.
+*   Observado que as chamadas para `/api/user` estão retornando status 200, indicando sucesso nas operações com o modelo `User`.
+
+**Decisões Chave e Justificativas:**
+
+*   Continuação da estratégia de usar `@map` para alinhar os nomes de campos do Prisma (camelCase) com os nomes de colunas do banco de dados (snake_case).
+
+**Próximos Passos Sugeridos:**
+
+*   **Usuário:**
+    *   Realizar um novo deploy da aplicação no Vercel.
+    *   Testar as funcionalidades de criação e atualização de perfil.
+    *   Observar se o erro P2022 para `businessType` foi resolvido e se surgem erros para outros campos (ex: `targetPersona`).
+*   **Assistente:**
+    *   Aguardar o resultado dos testes.
+    *   Se novos erros P2022 surgirem para outros campos, aplicar o mesmo mapeamento `@map("nome_snake_case")`.
+    *   Se todos os erros de mapeamento forem resolvidos e os problemas persistirem, investigar outras possíveis causas.
 
 ---
