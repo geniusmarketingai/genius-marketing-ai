@@ -9,7 +9,7 @@ export default function TermsOfService() {
         </CardHeader>
         <CardContent className="prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl mx-auto">
           <p className="text-muted-foreground text-center mb-6">
-            Última atualização: [insira a data]
+            Última atualização: Maio de 2025
           </p>
 
           <p>
