@@ -64,68 +64,121 @@ export default function Dashboard({ setScreen, onViewContent, onCopyContent }: D
     enabled: !!user?.id,
   });
 
+  const getEngagementBadgeClass = (engagementRate?: string): string => {
+    if (!engagementRate) return 'bg-gray-100 text-gray-800';
+    const rate = parseInt(engagementRate.replace('%', ''), 10);
+    if (rate >= 70) return 'bg-green-100 text-green-800';
+    if (rate >= 40) return 'bg-orange-100 text-orange-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  const engagementValue = metrics?.engagementRate || '0%';
+
   return (
-    <div className="p-4 pb-20 sm:pb-4">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold mb-2">
-          👋 Olá, {profile?.name || user?.email?.split('@')[0] || 'amigo'}! Pronto para criar algo incrível hoje?
+    <div className="p-4 pb-20 sm:pb-4 space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold mb-2">
+          👋 Olá, {profile?.name || user?.email?.split('@')[0] || 'amigo'}!
         </h2>
+        <p className="text-lg text-muted-foreground">Pronto para criar algo incrível hoje?</p>
+      </div>
         
-        <div className="mb-6 p-4 border rounded-lg shadow-sm bg-card">
-          <h3 className="text-lg font-semibold mb-3">🚀 Seu progresso até agora:</h3>
-          <ul className="space-y-2 text-sm">
-            <li>Créditos: <span className="font-semibold">{credits?.amount || 0} / 20</span> | <Button variant="link" className="p-0 h-auto text-sm text-primary" onClick={() => console.log('Atualizar créditos clicado')}>🔋 Atualizar créditos</Button></li>
-            <li>Engajamento médio: <span className="font-semibold">{metrics?.engagementRate || '0%'}</span></li>
-            <li>Conteúdos criados: <span className="font-semibold">{metrics?.contentCount || 0}</span></li>
-          </ul>
+      {/* Métricas Principais */}
+      <div className="space-y-6">
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-semibold">🚀 Seu progresso até agora:</h3>
+          </div>
+          <Card className="bg-card">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex justify-between items-center">
+                <span>Créditos: <span className="font-semibold">{credits?.amount || 0} / 20</span></span>
+                <Button variant="default" size="sm" onClick={() => console.log('Atualizar créditos clicado')}>
+                  🔋 Atualizar créditos
+                </Button>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                <div 
+                  className="bg-primary h-2.5 rounded-full transition-all duration-500 ease-out" 
+                  style={{ width: `${Math.min(100, ((credits?.amount || 0) / 20) * 100)}%` }}
+                ></div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-3">🎯 O que você deseja criar?</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-            <Button variant="outline" className="w-full justify-start py-6 text-left" onClick={() => setScreen('generation')}>
-              <span className="text-2xl mr-3">📄</span>
-              <div>
-                <span className="font-semibold">Gerar post para Instagram</span>
-                <p className="text-xs text-muted-foreground">Crie legendas e ideias para seu feed.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="flex flex-col">
+            <CardContent className="p-4 flex-grow">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold">Conteúdos Criados</h4>
+                <span className="text-2xl">📄</span>
               </div>
-            </Button>
-            <Button variant="outline" className="w-full justify-start py-6 text-left" onClick={() => setScreen('generation')}>
-              <span className="text-2xl mr-3">✍️</span>
-              <div>
-                <span className="font-semibold">Criar blog SEO</span>
-                <p className="text-xs text-muted-foreground">Artigos otimizados para buscadores.</p>
+              <p className="text-3xl font-bold">{metrics?.contentCount || 0}</p>
+            </CardContent>
+          </Card>
+          <Card className="flex flex-col">
+            <CardContent className="p-4 flex-grow">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold">Engajamento Médio</h4>
+                <span 
+                  className={`px-2 py-1 text-xs font-medium rounded-full ${getEngagementBadgeClass(engagementValue)}`}
+                >
+                  {engagementValue}
+                </span>
               </div>
-            </Button>
-            <Button variant="outline" className="w-full justify-start py-6 text-left" onClick={() => setScreen('generation')}>
-              <span className="text-2xl mr-3">📢</span>
-              <div>
-                <span className="font-semibold">Criar anúncio</span>
-                <p className="text-xs text-muted-foreground">Textos persuasivos para campanhas.</p>
-              </div>
-            </Button>
-          </div>
-          <Button variant="default" className="w-full" onClick={() => setScreen('generation')}>
-            <i className="fas fa-plus mr-2"></i> Novo conteúdo personalizado
-          </Button>
+              <p className="text-3xl font-bold">{engagementValue}</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
-      
-      {/* Recent Content */}
+
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold mb-4">🎯 O que você deseja criar?</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+          <Button variant="outline" className="w-full justify-start py-6 text-left" onClick={() => setScreen('generation')}>
+            <span className="text-2xl mr-3">📄</span>
+            <div>
+              <span className="font-semibold">Gerar post para Instagram</span>
+              <p className="text-xs text-muted-foreground">Crie legendas e ideias para seu feed.</p>
+            </div>
+          </Button>
+          <Button variant="outline" className="w-full justify-start py-6 text-left" onClick={() => setScreen('generation')}>
+            <span className="text-2xl mr-3">✍️</span>
+            <div>
+              <span className="font-semibold">Criar blog SEO</span>
+              <p className="text-xs text-muted-foreground">Artigos otimizados para buscadores.</p>
+            </div>
+          </Button>
+          <Button variant="outline" className="w-full justify-start py-6 text-left" onClick={() => setScreen('generation')}>
+            <span className="text-2xl mr-3">📢</span>
+            <div>
+              <span className="font-semibold">Criar anúncio</span>
+              <p className="text-xs text-muted-foreground">Textos persuasivos para campanhas.</p>
+            </div>
+          </Button>
+        </div>
+        <Button variant="default" className="w-full" onClick={() => setScreen('generation')}>
+          <i className="fas fa-plus mr-2"></i> Novo conteúdo personalizado
+        </Button>
+      </div>
+
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Últimos conteúdos</h3>
-          <button 
-            className="text-sm text-primary"
-            onClick={() => setScreen('history')}
-          >
-            Ver todos
-          </button>
+          <h3 className="text-xl font-semibold">Últimos conteúdos</h3>
+          {contents && contents.length > 0 && (
+            <button 
+              className="text-sm text-primary hover:underline"
+              onClick={() => setScreen('history')}
+            >
+              Ver todos
+            </button>
+          )}
         </div>
         
         {contents && contents.length > 0 ? (
           contents.slice(0, 3).map((content) => (
-            <Card key={content.id} className="mb-4">
+            <Card key={content.id} className="mb-4 transition-all hover:shadow-lg">
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-2">
                   <div>
@@ -163,15 +216,22 @@ export default function Dashboard({ setScreen, onViewContent, onCopyContent }: D
             </Card>
           ))
         ) : (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground mb-4">Você ainda não gerou nenhum conteúdo</p>
-            <button
-              className="px-4 py-2 bg-primary text-white rounded-lg"
-              onClick={() => setScreen('generation')}
-            >
-              <i className="fas fa-plus mr-2"></i> Criar seu primeiro conteúdo
-            </button>
-          </div>
+          <Card className="text-center py-10 px-6 bg-card shadow-lg">
+            <CardContent>
+              <span className="text-5xl mb-4 block">🎨</span>
+              <h4 className="text-xl font-semibold mb-2">A criatividade está prestes a explodir!</h4>
+              <p className="text-muted-foreground mb-6">
+                Ainda não há conteúdos aqui. Clique abaixo para dar o primeiro passo e criar algo incrível.
+              </p>
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white"
+                onClick={() => setScreen('generation')}
+              >
+                ✨ Criar meu primeiro conteúdo agora
+              </Button>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
