@@ -542,3 +542,58 @@
 *   Garantir que o redirecionamento após login/cadastro esteja funcionando conforme o esperado (usuário deve ser levado para a página principal da aplicação se o perfil estiver completo, ou para a página de completar perfil caso contrário).
 *   Verificar se as variáveis de ambiente do Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) estão corretamente configuradas no Vercel e localmente.
 *   Considerar adicionar ícones aos botões de login social (Google/Facebook) como uma melhoria visual futura.
+
+---
+## 2024-07-30: Investigação de Erro 500 (`FUNCTION_INVOCATION_FAILED`) nas Rotas `/api/user` e `/api/profile`
+
+**Sumário Técnico do Progresso:**
+
+*   Durante os testes de login (especificamente com Google OAuth), foi identificado um erro HTTP 500 (`FUNCTION_INVOCATION_FAILED`) ao tentar interagir com as rotas de backend `/api/user` (durante o registro pós-login) e `/api/profile` (ao clicar no botão "Concluir" em uma etapa de funil no frontend).
+*   O erro se manifesta no frontend como "Erro ao salvar perfil" e logs de console indicando falha na invocação da função serverless no Vercel.
+*   IDs de invocação de função com falha foram capturados: `gru1::l29bp-...`, `gru1::sgh8v-...`, `gru1::5qvwn-...`.
+
+**Decisões Chave e Justificativas (Diagnóstico em Andamento):**
+
+*   O erro `FUNCTION_INVOCATION_FAILED` aponta para um problema na execução da lógica da API no ambiente serverless do Vercel, e não diretamente um problema de autenticação Supabase ou do banco em si (embora possa ser uma consequência, como falha ao conectar ao banco).
+*   A principal linha de investigação é analisar os logs de runtime das funções serverless no painel do Vercel para obter o stack trace detalhado do erro no backend.
+
+**Próximos Passos Sugeridos:**
+
+*   **Usuário:** Verificar os logs de runtime das funções no painel do Vercel (aba "Functions" > Logs) utilizando os IDs de invocação para encontrar os erros detalhados.
+*   **Assistente (Paralelamente):** Analisar o código do frontend responsável pela chamada a `/api/profile` (etapa do "funil") para entender os dados enviados, assim que o usuário indicar o arquivo/componente relevante.
+*   Revisar a configuração das variáveis de ambiente no Vercel, especialmente `DATABASE_URL` e `OPENAI_API_KEY`.
+*   Com base nos logs do Vercel, identificar a causa raiz (ex: erro de código na função, problema de conexão com o banco, variável de ambiente ausente/incorreta) e propor a correção.
+
+---
+## 2024-07-30: Tentativa de Correção de Build da API (ESM no Vercel)
+
+**Sumário Técnico do Progresso:**
+
+*   Investigado o erro `ReferenceError: exports is not defined in ES module scope` que ocorria nas funções serverless da API no Vercel.
+*   **Causa Raiz Identificada:** O `tsconfig.json` principal na raiz do projeto possuía a diretiva `"noEmit": true`, impedindo a correta transpilação dos arquivos TypeScript da pasta `api/` para JavaScript no formato ES Module, resultando em um conflito com a configuração `"type": "module"` do `package.json`.
+*   **Ações de Correção:**
+    *   Criado um arquivo `api/tsconfig.json` dedicado, estendendo o `tsconfig.json` da raiz.
+    *   No `api/tsconfig.json`, as seguintes configurações chave foram aplicadas/sobrescritas:
+        *   `"noEmit": false` (para habilitar a emissão de arquivos .js)
+        *   `"module": "esnext"` (para garantir output ESM)
+        *   `"moduleResolution": "nodenext"` (para correta resolução de módulos ESM no Node)
+        *   `"target": "es2020"`
+        *   `"outDir": "dist"` (para os arquivos compilados irem para `api/dist/`)
+        *   `"rootDir": "."`
+        *   `"allowImportingTsExtensions": false` (para resolver um conflito com a opção herdada quando `noEmit` é `false`).
+        *   O arquivo `api/index.ts` já estava utilizando import com extensão `.js` (`import { registerRoutes } from './_lib/routes.js';`).
+*   Um erro de linter persistente no Cursor foi observado para `allowImportingTsExtensions` no `api/tsconfig.json`, apesar das configurações parecerem corretas.
+
+**Decisões Chave e Justificativas:**
+
+*   A criação de um `api/tsconfig.json` dedicado permite configurar especificamente o build do backend sem afetar as configurações do frontend (que podem depender de `noEmit: true` para o Vite).
+*   As configurações de módulo e emissão no `api/tsconfig.json` visam forçar a compilação para JavaScript ES Module, alinhando-se com `"type": "module"` no `package.json`.
+
+**Próximos Passos Sugeridos:**
+
+*   **Realizar um novo deploy no Vercel** com as alterações no `api/tsconfig.json`.
+*   **Monitorar os logs de build e runtime do Vercel:**
+    *   Verificar se o build da API é bem-sucedido.
+    *   Testar as funcionalidades de login e perfil para confirmar se o erro `FUNCTION_INVOCATION_FAILED` / `exports is not defined` foi resolvido.
+*   Se o erro persistir, analisar detalhadamente os logs do Vercel para entender como os arquivos da API estão sendo compilados e executados no ambiente Vercel.
+*   Se o erro for relacionado ao `allowImportingTsExtensions` no build do Vercel, considerar remover essa linha do `api/tsconfig.json`.
