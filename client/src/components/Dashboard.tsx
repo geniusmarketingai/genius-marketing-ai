@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Content, UserProfile } from '@shared/schema';
 import { getContentTypeName } from '@/lib/openai';
 import { apiRequest } from '@/lib/queryClient';
+import { Button } from "@/components/ui/button";
 
 type DashboardProps = {
   setScreen: (screen: string) => void;
@@ -65,54 +66,49 @@ export default function Dashboard({ setScreen, onViewContent, onCopyContent }: D
 
   return (
     <div className="p-4 pb-20 sm:pb-4">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold mb-1">
-          👋 Olá, {profile?.name || user?.email?.split('@')[0] || 'amigo'}!
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-2">
+          👋 Olá, {profile?.name || user?.email?.split('@')[0] || 'amigo'}! Pronto para criar algo incrível hoje?
         </h2>
-        <p className="text-muted-foreground">O que você quer criar hoje?</p>
-      </div>
-      
-      {/* Credits Summary */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Seus créditos</h3>
-              <p className="text-2xl font-bold mt-1">{credits?.amount || 0}</p>
-            </div>
-            <div className="bg-primary/10 text-primary p-3 rounded-lg">
-              <i className="fas fa-bolt text-xl"></i>
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary rounded-full" 
-                style={{ width: `${Math.min(100, ((credits?.amount || 0) / 20) * 100)}%` }}
-              ></div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {credits?.amount || 0} de 20 créditos disponíveis
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Conteúdos</h3>
-            <p className="text-2xl font-bold mt-1">{metrics?.contentCount || 0}</p>
-          </CardContent>
-        </Card>
         
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Engajamento</h3>
-            <p className="text-2xl font-bold mt-1">72%</p>
-          </CardContent>
-        </Card>
+        <div className="mb-6 p-4 border rounded-lg shadow-sm bg-card">
+          <h3 className="text-lg font-semibold mb-3">🚀 Seu progresso até agora:</h3>
+          <ul className="space-y-2 text-sm">
+            <li>Créditos: <span className="font-semibold">{credits?.amount || 0} / 20</span> | <Button variant="link" className="p-0 h-auto text-sm text-primary" onClick={() => console.log('Atualizar créditos clicado')}>🔋 Atualizar créditos</Button></li>
+            <li>Engajamento médio: <span className="font-semibold">{metrics?.engagementRate || '0%'}</span></li>
+            <li>Conteúdos criados: <span className="font-semibold">{metrics?.contentCount || 0}</span></li>
+          </ul>
+        </div>
+
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-3">🎯 O que você deseja criar?</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+            <Button variant="outline" className="w-full justify-start py-6 text-left" onClick={() => setScreen('generation')}>
+              <span className="text-2xl mr-3">📄</span>
+              <div>
+                <span className="font-semibold">Gerar post para Instagram</span>
+                <p className="text-xs text-muted-foreground">Crie legendas e ideias para seu feed.</p>
+              </div>
+            </Button>
+            <Button variant="outline" className="w-full justify-start py-6 text-left" onClick={() => setScreen('generation')}>
+              <span className="text-2xl mr-3">✍️</span>
+              <div>
+                <span className="font-semibold">Criar blog SEO</span>
+                <p className="text-xs text-muted-foreground">Artigos otimizados para buscadores.</p>
+              </div>
+            </Button>
+            <Button variant="outline" className="w-full justify-start py-6 text-left" onClick={() => setScreen('generation')}>
+              <span className="text-2xl mr-3">📢</span>
+              <div>
+                <span className="font-semibold">Criar anúncio</span>
+                <p className="text-xs text-muted-foreground">Textos persuasivos para campanhas.</p>
+              </div>
+            </Button>
+          </div>
+          <Button variant="default" className="w-full" onClick={() => setScreen('generation')}>
+            <i className="fas fa-plus mr-2"></i> Novo conteúdo personalizado
+          </Button>
+        </div>
       </div>
       
       {/* Recent Content */}
