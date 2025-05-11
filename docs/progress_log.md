@@ -612,10 +612,32 @@
 
 **Decisões Chave e Justificativas:**
 
-*   Aderência aos requisitos de imports de ES Modules nativos no Node.js, que exigem extensões de arquivo explícitas em imports relativos.
+*   Aderência aos requisitos de imports de ES Modules nativos no Node.js, que exigem extensões de arquivo `.js` explícitas em imports relativos.
 
 **Próximos Passos Sugeridos:**
 
 *   Realizar um novo deploy no Vercel com a correção no import.
 *   Testar novamente os fluxos de autenticação e perfil para verificar se os erros `FUNCTION_INVOCATION_FAILED` e `ERR_MODULE_NOT_FOUND` foram resolvidos.
 *   Monitorar os logs do Vercel para quaisquer novos problemas.
+
+---
+## 2024-07-30: Correção de `ERR_MODULE_NOT_FOUND` para `../../shared/schema` na API
+
+**Sumário Técnico do Progresso:**
+
+*   Após a correção anterior, um novo erro `ERR_MODULE_NOT_FOUND` surgiu nos logs de runtime do Vercel: `Cannot find module '/var/task/shared/schema' imported from /var/task/api/_lib/routes.js`.
+*   **Causa Raiz Identificada:** Similar ao problema anterior, o arquivo `api/_lib/routes.ts` estava importando o schema compartilhado como `import { ... } from "../../shared/schema";` sem a extensão `.js`.
+*   **Ação de Correção:**
+    *   Modificado o arquivo `api/_lib/routes.ts` para que o import seja `import { ... } from "../../shared/schema.js";`.
+
+**Decisões Chave e Justificativas:**
+
+*   Consistência na aplicação da regra de imports de ES Modules nativos no Node.js, que exigem extensões de arquivo `.js` explícitas em imports relativos.
+
+**Próximos Passos Sugeridos:**
+
+*   Realizar um novo deploy no Vercel com a correção no import de `shared/schema.js`.
+*   Testar novamente os fluxos de autenticação e perfil.
+*   Se o erro persistir, investigar como a pasta `shared` (e seus artefatos compilados `.js`) está sendo incluída e disponibilizada no ambiente de execução das funções serverless do Vercel em relação à pasta `api/dist`.
+    *   Considerar a necessidade de um `shared/tsconfig.json` para compilar a pasta `shared` separadamente para um `shared/dist/` e ajustar o path do import na API (ex: `../../shared/dist/schema.js`).
+*   Monitorar os logs do Vercel.

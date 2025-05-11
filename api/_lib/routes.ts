@@ -2,7 +2,7 @@ import type { Express } from "express";
 // Removido: import { createServer, type Server } from "http"; // Não precisamos criar o servidor HTTP aqui
 import { storage } from "./storage.js"; // ADICIONADO .js
 import { z } from "zod";
-import { insertContentSchema, insertCreditSchema, onboardingSchema, contentGenerationSchema, userRegistrationSchema } from "../../shared/schema"; // Ajustado o caminho
+import { insertContentSchema, insertCreditSchema, onboardingSchema, contentGenerationSchema, userRegistrationSchema } from "../../shared/schema.js"; // ADICIONADO .js
 import OpenAI from "openai";
 // Importar ContentType do Prisma para uso explícito se necessário
 import { ContentType } from '@prisma/client';
