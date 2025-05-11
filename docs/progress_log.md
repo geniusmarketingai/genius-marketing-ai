@@ -430,3 +430,27 @@
 *   Realizar um novo deploy na Vercel para aplicar as alterações do `vercel.json`.
 *   Verificar se as sub-rotas (ex: `/privacy-policy`, `/terms-of-service`) agora carregam corretamente sem erros 404.
 *   Continuar com o desenvolvimento da aplicação.
+
+---
+## 2024-07-29: Atualização do Conteúdo das Páginas de Política de Privacidade e Termos de Uso
+
+**Sumário Técnico do Progresso:**
+
+*   O conteúdo das páginas de Política de Privacidade e Termos de Uso foi atualizado conforme o texto fornecido pelo usuário.
+*   **`client/src/pages/PrivacyPolicy.tsx` modificado:**
+    *   O texto placeholder foi substituído pelo novo conteúdo da Política de Privacidade.
+    *   O título da página foi atualizado para "📜 Política de Privacidade – Genius Marketing AI".
+*   **`client/src/pages/TermsOfService.tsx` modificado:**
+    *   O texto placeholder foi substituído pelo novo conteúdo dos Termos de Uso.
+    *   O título da página foi atualizado para "📘 Termos de Uso – Genius Marketing AI".
+
+**Decisões Chave e Justificativas:**
+
+*   Atendimento à solicitação do usuário para utilizar os textos específicos fornecidos para as páginas legais da aplicação.
+
+**Próximos Passos Sugeridos:**
+
+*   Realizar um novo deploy na Vercel para que as alterações de conteúdo sejam refletidas no ambiente de produção.
+*   Verificar se as páginas `/privacy-policy` e `/terms-of-service` exibem o novo conteúdo corretamente.
+*   Inserir a data atual nos campos "[insira a data]" em ambas as páginas.
+*   Considerar adicionar links para estas páginas no rodapé da aplicação ou em locais relevantes.
