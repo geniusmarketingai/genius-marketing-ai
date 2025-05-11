@@ -3,83 +3,73 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { signInWithPassword, signUp, signInWithOAuth } = useAuth();
   const { toast } = useToast();
-  const { signInWithMagicLink } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Submit form triggered");
-    
-    if (!email || !email.includes('@')) {
-      toast({
-        title: "E-mail inválido",
-        description: "Por favor, insira um e-mail válido",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setIsLoading(true);
-    console.log("Trying to sign in with email:", email);
-    
-    try {
-      console.log("Calling signInWithMagicLink");
-      const response = await signInWithMagicLink(email);
-      console.log("Sign in response:", response);
-      
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-      
-      // Construir um link de login direto (para o usuário copiar se precisar)
-      const loginUrl = `${window.location.origin}/login#email=${encodeURIComponent(email)}`;
-      
-      toast({
-        title: "Magic link enviado!",
-        description: 
-          <div className="space-y-2">
-            <p>Verifique seu e-mail para fazer login</p>
-            <p className="text-xs text-muted-foreground">
-              Se tiver problemas, use este link: 
-              <button 
-                onClick={() => { navigator.clipboard.writeText(loginUrl); toast({ description: "Link copiado!" }); }}
-                className="underline ml-1 cursor-pointer"
-              >
-                Copiar link de login
-              </button>
-            </p>
-          </div>,
-      });
-    } catch (error) {
-      console.error("Auth error:", error);
-      toast({
-        title: "Erro ao enviar magic link",
-        description: error instanceof Error ? error.message : "Tente novamente mais tarde",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    const { error } = await signInWithPassword(email, password);
+    setIsLoading(false);
+    if (error) {
+      toast({ title: "Erro no Login", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Login bem-sucedido!" });
+      // O redirecionamento será tratado pelo AuthProvider/App.tsx ao detectar mudança no usuário
     }
   };
 
+  const handleSignUp = async () => {
+    setIsLoading(true);
+    // Validação básica, idealmente usar Zod aqui
+    if (password.length < 6) {
+        toast({ title: "Erro no Cadastro", description: "Senha deve ter no mínimo 6 caracteres.", variant: "destructive" });
+        setIsLoading(false);
+        return;
+    }
+    const { error: signUpError, data: signUpData } = await signUp(email, password);
+    setIsLoading(false);
+    if (signUpError) {
+      toast({ title: "Erro no Cadastro", description: signUpError.message, variant: "destructive" });
+    } else if (signUpData.user?.identities?.length === 0) {
+        // Pode acontecer se a confirmação de email estiver ativa e o email já existe mas não confirmado
+        toast({ title: "Verificação Pendente", description: "Usuário já registrado mas e-mail não confirmado. Verifique seu e-mail ou contate suporte se o problema persistir.", variant: "default", duration: 10000 });
+    } else if (signUpData.user) {
+      toast({ title: "Cadastro realizado!", description: "Você já pode fazer login." });
+    } else {
+      // Fallback para outros cenários de 'sucesso' sem usuário, como quando confirmação de email é necessária
+       toast({ title: "Verifique seu e-mail", description: "Se o cadastro foi bem-sucedido, um e-mail de confirmação pode ter sido enviado (se configurado).", variant: "default", duration: 10000 });
+    }
+  };
+
+  const handleOAuthSignIn = async (provider: 'google' | 'facebook') => {
+    setIsLoading(true);
+    const { error } = await signInWithOAuth(provider);
+    setIsLoading(false);
+    if (error) {
+      toast({ title: `Erro com ${provider}`, description: error.message, variant: "destructive" });
+    }
+    // O redirecionamento é tratado pelo Supabase e o App.tsx detectará a mudança de sessão
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6">
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-background">
       <Card className="w-full max-w-md">
         <CardContent className="pt-6">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-primary mb-2">Genius Marketing AI</h1>
-            <p className="text-muted-foreground">Crie conteúdo excepcional com IA</p>
+            <p className="text-muted-foreground">Acesse sua conta ou crie uma nova</p>
           </div>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1">
               <Label htmlFor="email">E-mail</Label>
               <Input 
                 type="email" 
@@ -88,27 +78,61 @@ export default function Auth() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required 
+                disabled={isLoading}
               />
             </div>
-            
+            <div className="space-y-1">
+              <Label htmlFor="password">Senha</Label>
+              <Input 
+                type="password" 
+                id="password" 
+                placeholder="********" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required 
+                disabled={isLoading}
+              />
+            </div>
             <Button 
               type="submit" 
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? (
-                <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i>
-                  Enviando...
-                </>
-              ) : (
-                <>
-                  Entrar com Magic Link
-                  <i className="fas fa-magic ml-2"></i>
-                </>
-              )}
+              {isLoading ? 'Entrando...' : 'Entrar'}
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full" 
+              onClick={handleSignUp}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Processando...' : 'Criar Nova Conta'}
             </Button>
           </form>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Ou continue com
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}>
+              {/* Substituir por um ícone do Google depois */}
+              {isLoading ? 'Aguarde...' : 'Google'}
+            </Button>
+            <Button variant="outline" onClick={() => handleOAuthSignIn('facebook')} disabled={isLoading}>
+              {/* Substituir por um ícone do Facebook depois */}
+              {isLoading ? 'Aguarde...' : 'Facebook'}
+            </Button>
+          </div>
+
         </CardContent>
       </Card>
     </div>

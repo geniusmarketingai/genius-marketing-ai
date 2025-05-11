@@ -296,3 +296,137 @@
 *   **Verificar Configurações no Supabase:** Confirmar se o "Site URL" no painel do Supabase (Authentication > URL Configuration) está definido como `https://genius-marketing-ai.vercel.app/`.
 *   **Resolver Problema do `npm run dev`:** Investigar e corrigir o erro de "recursive invocation" para habilitar o desenvolvimento local eficiente.
 *   Proceder com outras tarefas de desenvolvimento conforme priorizado.
+
+---
+## 2024-07-28: Tentativa de Correção de `ERR_MODULE_NOT_FOUND` e Replanejamento do Fluxo de Login
+
+**Sumário Técnico do Progresso:**
+
+*   **Problema Persistente de Módulo Não Encontrado:**
+    *   Os logs de runtime do Vercel continuaram a apresentar o erro `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/api/_lib/routes' imported from /var/task/api/index.js` mesmo após a configuração de `tsconfig.json` separados para a raiz e para a pasta `api`.
+    *   Tentativa de correção: Foi alterada a importação do módulo de rotas em `api/index.ts` de `'./_lib/routes'` para `'./_lib/routes.js'`. Esta alteração visava auxiliar o Vercel a resolver o módulo transpilado.
+    *   Resultado: A alteração não resolveu o erro `ERR_MODULE_NOT_FOUND`, e as chamadas para `/api/profile` e `/api/user` continuaram resultando em erro 500.
+
+*   **Revisão da Estratégia de Autenticação (Proposta pelo Usuário):**
+    *   Devido à persistência do erro e às dificuldades com o fluxo de Magic Link (como o `otp_expired` observado anteriormente, possivelmente como consequência das falhas na API), foi proposto pelo usuário reconsiderar a abordagem de login.
+
+**Decisões Chave e Justificativas:**
+
+*   A tentativa de adicionar a extensão `.js` à importação foi uma abordagem comum para resolver problemas de resolução de módulos em ambientes Node.js com transpilação, mas não foi eficaz neste cenário específico com Vercel.
+*   A persistência do erro `ERR_MODULE_NOT_FOUND` sugere um problema mais fundamental na forma como o Vercel está construindo ou empacotando as Serverless Functions da pasta `api`, ou como os caminhos estão sendo interpretados em tempo de execução, apesar das configurações de `tsconfig.json`.
+
+**Próximos Passos Sugeridos (Conforme Solicitação do Usuário):**
+
+*   **Na próxima interação, focar em:**
+    1.  **Remover completamente a funcionalidade de Magic Link existente.** Isso envolverá alterações no frontend (`client/src/components/Auth.tsx`, `client/src/hooks/useAuth.tsx`) e possivelmente a remoção de configurações relacionadas no Supabase se não forem mais necessárias para outros fluxos.
+    2.  **Implementar uma tela de login padrão:** Permitir que usuários façam login utilizando email e senha previamente cadastrados.
+    3.  **Adicionar opções de login social:** Integrar login com Gmail e Facebook.
+    4.  **Reintroduzir o botão/link "Criar conta":** Direcionar para uma nova interface de criação de conta (email/senha).
+
+---
+## 2024-07-28: Remoção Completa da Funcionalidade de Magic Link
+
+**Sumário Técnico do Progresso:**
+
+*   Seguindo a decisão de replanejar o fluxo de autenticação, a funcionalidade de Magic Link foi completamente removida do frontend.
+*   **`client/src/hooks/useAuth.tsx` modificado:**
+    *   Removida a função `signInWithMagicLink`.
+    *   Atualizado o tipo `AuthContextType` e o valor padrão do contexto para não incluir referências ao `signInWithMagicLink`.
+*   **`client/src/components/Auth.tsx` modificado:**
+    *   Removida toda a lógica de estado (email, isLoading) e a função `handleSubmit` que tratava o envio do Magic Link.
+    *   A UI foi simplificada para um placeholder, aguardando a implementação da nova tela de login (email/senha e social login).
+    *   Importações não utilizadas foram removidas.
+*   **`client/src/pages/login.tsx` excluído:**
+    *   Este arquivo continha uma implementação de Magic Link que se tornou redundante e conflitante com a nova estratégia.
+*   **`client/src/App.tsx` modificado:**
+    *   A rota `/login` foi atualizada para renderizar o componente `Auth` de `@/components/Auth` (que agora é o placeholder da nova tela de login) em vez do antigo `pages/login`.
+
+**Decisões Chave e Justificativas:**
+
+*   A remoção completa do Magic Link é o primeiro passo para implementar um sistema de autenticação mais robusto e tradicional com email/senha e opções de login social, conforme definido nos próximos passos.
+*   Consolidar a lógica de login na rota principal `/login` utilizando o componente `Auth.tsx` simplifica a estrutura de roteamento e a futura implementação.
+
+**Próximos Passos Sugeridos:**
+
+*   **Revisão das Configurações no Supabase:** O usuário deve verificar e, se necessário, desabilitar/ajustar configurações de Magic Link (provedor de e-mail, templates de e-mail) diretamente no painel do Supabase.
+*   **Implementar a Nova Tela de Login:**
+    *   No componente `client/src/components/Auth.tsx`:
+        *   Adicionar campos de formulário para email e senha.
+        *   Implementar a lógica de login com email/senha utilizando as funções apropriadas do Supabase Auth.
+        *   Adicionar botões para login social (Gmail, Facebook).
+    *   No hook `client/src/hooks/useAuth.tsx`:
+        *   Adicionar novas funções para `signInWithPassword` e `signUp`.
+        *   Adicionar funções para lidar com login social (`signInWithOAuth`).
+*   **Implementar Tela/Fluxo de Criação de Conta:** Criar uma nova rota/componente para o cadastro de usuários com email e senha.
+
+---
+## 2024-07-28: Implementação Inicial da Nova Lógica de Autenticação
+
+**Sumário Técnico do Progresso:**
+
+*   **`client/src/hooks/useAuth.tsx` atualizado:**
+    *   Adicionadas as funções `signInWithPassword(email, password)`, `signUp(email, password)` e `signInWithOAuth(provider)` ao hook.
+    *   Estas funções utilizam os respectivos métodos do `supabase.auth` (`signInWithPassword`, `signUp`, `signInWithOAuth`) para interagir com o Supabase.
+    *   O tipo `AuthContextType` e o valor padrão do contexto foram atualizados para incluir estas novas funções.
+    *   Para `signUp`, a opção `emailRedirectTo` foi comentada, pois o serviço de e-mail do Supabase foi desabilitado pelo usuário. É recomendado que a *exigência* de confirmação de e-mail também seja desabilitada no painel do Supabase (Authentication > Providers > Email > desmarcar "Confirm email") para um fluxo de cadastro direto.
+    *   Para `signInWithOAuth`, foi adicionado um comentário sobre a necessidade de configurar corretamente os Client IDs/Secrets no painel do Supabase para que funcione.
+*   **`client/src/components/Auth.tsx` atualizado (Rascunho Inicial da UI):**
+    *   Adicionados inputs para e-mail e senha.
+    *   Adicionado botão "Entrar" que chama `signInWithPassword`.
+    *   Adicionado botão "Criar Nova Conta" que chama `signUp`.
+    *   Adicionados botões para login com "Google" e "Facebook" que chamam `signInWithOAuth` com o provedor correspondente.
+    *   Implementados handlers básicos com `useState` para `email`, `password`, e `isLoading`.
+    *   Utilizado `useToast` para feedback visual de sucesso/erro nas operações.
+    *   A UI é básica e funcional, pronta para refinamentos futuros e adição de ícones/estilização.
+
+**Decisões Chave e Justificativas:**
+
+*   Implementação das funções de autenticação diretamente no `useAuth` para centralizar a lógica de interação com o Supabase Auth.
+*   Criação de uma UI de login funcional no `Auth.tsx` que permite testar os novos fluxos de login e cadastro.
+*   Lembrete sobre a configuração dos provedores OAuth no Supabase e a desativação da exigência de confirmação de e-mail para o fluxo de `signUp` funcionar sem envio de e-mails.
+
+**Próximos Passos Sugeridos:**
+
+*   **Testar os Novos Fluxos:**
+    *   Testar o cadastro de um novo usuário com email e senha.
+    *   Testar o login com um usuário existente (email e senha).
+    *   **Configurar Provedores OAuth no Supabase:** O usuário DEVE configurar corretamente os Client IDs e Secrets para Google e Facebook no painel do Supabase (Authentication > Providers) antes de testar o login social.
+    *   Após configuração, testar o login com Google.
+    *   Após configuração, testar o login com Facebook.
+*   **Refinamento da UI/UX:**
+    *   Melhorar a aparência da tela de login (`Auth.tsx`).
+    *   Adicionar ícones aos botões de login social.
+    *   Considerar a separação do formulário de "Criar Conta" para uma rota/modal distinto ou melhorar a UX na mesma tela.
+    *   Implementar validação de formulário mais robusta (ex: com Zod).
+*   **Verificar Configuração de "Confirm email" no Supabase:** O usuário deve confirmar se a opção "Confirm email" está desabilitada em Authentication > Providers > Email no painel do Supabase.
+
+---
+## 2024-07-29: Criação das Páginas de Política de Privacidade e Termos de Uso
+
+**Sumário Técnico do Progresso:**
+
+*   **Criação de Componentes de Página:**
+    *   Criado o arquivo `client/src/pages/PrivacyPolicy.tsx` com um conteúdo placeholder básico para a Política de Privacidade.
+    *   Criado o arquivo `client/src/pages/TermsOfService.tsx` com um conteúdo placeholder básico para os Termos de Uso.
+    *   Ambos os componentes utilizam `Card` do Shadcn/UI para uma apresentação simples e limpa.
+*   **Configuração de Rotas:**
+    *   As novas páginas foram importadas no arquivo `client/src/App.tsx`.
+    *   Foram adicionadas novas rotas no componente `Router` dentro de `client/src/App.tsx`:
+        *   `<Route path="/privacy-policy" component={PrivacyPolicy} />`
+        *   `<Route path="/terms-of-service" component={TermsOfService} />`
+
+**Decisões Chave e Justificativas:**
+
+*   Criação de páginas estáticas com conteúdo placeholder para atender à solicitação inicial. O conteúdo jurídico final deverá ser fornecido e inserido pelo usuário.
+*   Utilização da estrutura de roteamento existente em `client/src/App.tsx` com o `wouter` para tornar as páginas acessíveis via URL.
+
+**URLs das Novas Páginas:**
+
+*   Política de Privacidade: `/privacy-policy`
+*   Termos de Uso: `/terms-of-service`
+
+**Próximos Passos Sugeridos:**
+
+*   O usuário deve substituir o conteúdo placeholder nas páginas `PrivacyPolicy.tsx` e `TermsOfService.tsx` pelos textos legais finais.
+*   Adicionar links para estas páginas no rodapé da aplicação e/ou em outros locais relevantes (ex: durante o processo de cadastro).
+*   Continuar com as demais tarefas de desenvolvimento da aplicação.

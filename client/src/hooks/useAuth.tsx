@@ -8,16 +8,20 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   hasProfile: boolean;
-  signInWithMagicLink: (email: string) => Promise<any>;
   signOut: () => Promise<void>;
+  signInWithPassword: (email_0: string, password_0: string) => Promise<any>;
+  signUp: (email_0: string, password_0: string) => Promise<any>;
+  signInWithOAuth: (provider_0: 'google' | 'facebook') => Promise<any>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   hasProfile: false,
-  signInWithMagicLink: async () => ({}),
   signOut: async () => {},
+  signInWithPassword: async () => ({}),
+  signUp: async () => ({}),
+  signInWithOAuth: async () => ({}),
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -96,18 +100,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   
-  // Magic link sign in
-  const signInWithMagicLink = async (email: string) => {
-    console.log("Magic link sign in with origin:", window.location.origin);
-    const result = await supabase.auth.signInWithOtp({
-      email,
+  // Sign up new users
+  const signUp = async (email_0: string, password_0: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email_0,
+      password: password_0,
+      // options: {
+      //   // emailRedirectTo: `${window.location.origin}/auth/callback`, // Se o serviço de email estivesse ativo e confirmação habilitada
+      // },
+    });
+    if (error) console.error('Error signing up:', error.message);
+    return { data, error };
+  };
+
+  // Sign in with email and password
+  const signInWithPassword = async (email_0: string, password_0: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email_0,
+      password: password_0,
+    });
+    if (error) console.error('Error signing in with password:', error.message);
+    return { data, error };
+  };
+
+  // Sign in with OAuth provider
+  const signInWithOAuth = async (provider_0: 'google' | 'facebook') => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: provider_0,
       options: {
-        emailRedirectTo: window.location.href, // Use the current URL instead of origin
-        shouldCreateUser: true,
+        // redirectTo: `${window.location.origin}/` // Opcional, Supabase geralmente lida bem com isso se Site URL estiver configurado.
+        // queryParams: provider === 'google' ? { access_type: 'offline', prompt: 'consent' } : undefined, // Exemplo para Google
       },
     });
-    console.log("Magic link result:", result);
-    return result;
+    if (error) console.error(`Error signing in with ${provider_0}:`, error.message);
+    return { data, error };
   };
   
   // Sign out
@@ -120,8 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isLoading: isLoading || isProfileLoading,
     hasProfile,
-    signInWithMagicLink,
     signOut,
+    signInWithPassword,
+    signUp,
+    signInWithOAuth,
   };
   
   return (
