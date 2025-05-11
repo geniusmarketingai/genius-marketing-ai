@@ -9,6 +9,7 @@ import Home from "@/pages/home";
 import Auth from "@/components/Auth";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
+import DataDeletionFacebook from "@/pages/DataDeletionFacebook";
 import { AuthProvider } from "@/hooks/useAuth";
 import { supabase } from "./lib/supabaseClient";
 
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/login" component={Auth} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/terms-of-service" component={TermsOfService} />
+      <Route path="/data-deletion-facebook" component={DataDeletionFacebook} />
       <Route component={NotFound} />
     </Switch>
   );

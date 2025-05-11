@@ -454,3 +454,33 @@
 *   Verificar se as páginas `/privacy-policy` e `/terms-of-service` exibem o novo conteúdo corretamente.
 *   Inserir a data atual nos campos "[insira a data]" em ambas as páginas.
 *   Considerar adicionar links para estas páginas no rodapé da aplicação ou em locais relevantes.
+
+---
+## 2024-07-30: Criação da Página de Exclusão de Dados (Facebook Login)
+
+**Sumário Técnico do Progresso:**
+
+*   **Criação de Componente de Página:**
+    *   Criado o arquivo `client/src/pages/DataDeletionFacebook.tsx` com o conteúdo fornecido pelo usuário, detalhando o processo para solicitar a exclusão de dados associados ao login com Facebook.
+    *   A página inclui um link para a Política de Privacidade (`/privacy-policy`).
+    *   O componente utiliza `Card` do Shadcn/UI e `Link` do `wouter`.
+*   **Configuração de Rotas:**
+    *   A nova página foi importada no arquivo `client/src/App.tsx`.
+    *   Foi adicionada uma nova rota no componente `Router` dentro de `client/src/App.tsx`:
+        *   `<Route path="/data-deletion-facebook" component={DataDeletionFacebook} />`
+
+**Decisões Chave e Justificativas:**
+
+*   Criação de uma página dedicada para instruções de exclusão de dados para usuários que utilizam o login do Facebook, conforme solicitado.
+*   Utilização da estrutura de roteamento existente para tornar a página acessível.
+
+**URL da Nova Página:**
+
+*   Exclusão de Dados (Facebook): `/data-deletion-facebook`
+
+**Próximos Passos Sugeridos:**
+
+*   O usuário deve verificar se o conteúdo da página está conforme esperado.
+*   Realizar um novo deploy na Vercel para que a nova página esteja disponível no ambiente de produção.
+*   Considerar adicionar um link para esta página na Política de Privacidade ou nos Termos de Uso, caso relevante, ou em um local específico exigido pelas diretrizes do Facebook para desenvolvedores.
+*   Continuar com as demais tarefas de desenvolvimento da aplicação.
