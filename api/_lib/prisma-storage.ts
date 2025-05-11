@@ -30,18 +30,54 @@ export class PrismaStorage implements IStorage {
   }
 
   async saveUserProfile(data: Prisma.UserProfileUncheckedCreateInput): Promise<UserProfile> {
-    // UserProfileUncheckedCreateInput permite passar userId diretamente,
-    // e o Prisma gerencia o ID do UserProfile (UUID)
-    // Garanta que 'email' esteja incluído em 'data' conforme o schema UserProfile
-    return prisma.userProfile.create({ data });
+    const { userId, email, ...updateDataFields } = data;
+
+    if (!userId) {
+      throw new Error("userId é obrigatório para salvar o perfil do usuário.");
+    }
+    if (!email) {
+        throw new Error("email é obrigatório para salvar o perfil do usuário.");
+    }
+    
+    const createInput: Prisma.UserProfileUncheckedCreateInput = {
+        userId: data.userId,
+        email: data.email,
+        name: data.name,
+        businessType: data.businessType,
+        targetPersona: data.targetPersona,
+        channels: data.channels,
+    };
+
+    const updateInput: Prisma.UserProfileUncheckedUpdateInput = {
+        email: data.email, 
+        name: data.name,
+        businessType: data.businessType,
+        targetPersona: data.targetPersona,
+        channels: data.channels,
+    };
+
+    return prisma.userProfile.upsert({
+      where: {
+        userId: data.userId, 
+      },
+      create: createInput,  
+      update: updateInput,  
+    });
   }
 
-  async updateUserProfile(userId: string, data: Prisma.UserProfileUncheckedUpdateInput): Promise<UserProfile> {
-    // UserProfileUncheckedUpdateInput para atualizações
-    return prisma.userProfile.update({
-      where: { userId },
-      data,
-    });
+  async updateUserProfile(userId: string, data: Prisma.UserProfileUncheckedUpdateInput): Promise<UserProfile | null> {
+    try {
+        return prisma.userProfile.update({
+            where: { userId },
+            data,
+        });
+    } catch (error: any) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+            console.warn(`Perfil não encontrado para atualização com userId: ${userId}`);
+            return null; 
+        }
+        throw error; 
+    }
   }
 
   async getContent(id: string): Promise<Content | null> { // id já é string, retorno pode ser null

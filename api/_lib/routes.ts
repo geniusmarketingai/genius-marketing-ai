@@ -37,12 +37,15 @@ export function registerRoutes(app: Express): void {
       // Retorna 200 tanto se encontrou quanto se criou, com os dados do usuário.
       // O frontend pode não precisar diferenciar, apenas saber que o usuário existe no sistema.
       return res.status(200).json(user); 
-    } catch (error) {
+    } catch (error: any) {
       console.error("[API Error] /api/user:", error);
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         // Tratar erros conhecidos do Prisma se necessário, embora findOrCreateUser deva ser robusto
         // Ex: P2002 para unique constraint, embora a lógica de findOrCreate deva evitar isso para 'id' e 'email' primários.
-        return res.status(500).json({ message: `Erro de banco de dados ao registrar usuário: ${error.code}` });
+        return res.status(500).json({ 
+          message: `Erro de banco de dados ao registrar usuário: ${error.code}`,
+          code: error.code
+        });
       }
       return res.status(500).json({ message: "Erro interno do servidor ao registrar usuário" });
     }
@@ -53,34 +56,40 @@ export function registerRoutes(app: Express): void {
     try {
       const userId = req.query.userId as string;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        // Se o userId é um parâmetro de query obrigatório
+        return res.status(400).json({ message: "userId é obrigatório como query parameter" });
       }
       const profile = await storage.getUserProfile(userId);
       if (!profile) {
         return res.status(404).json({ message: "Perfil não encontrado" });
       }
       return res.json(profile);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching profile:", error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return res.status(500).json({ 
+          message: `Erro de banco de dados ao buscar perfil: ${error.code}`,
+          code: error.code
+        });
+      }
       return res.status(500).json({ message: "Erro ao buscar perfil" });
     }
   });
 
   app.post("/api/profile", async (req, res) => {
+    let profileInput: any; // Para uso no logging do catch
     try {
-      // O onboardingSchema deve agora ser compatível com Prisma.UserProfileUncheckedCreateInput
-      // Principalmente, garantir que `email` esteja presente e `userId`.
       const parseResult = onboardingSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ message: "Dados de perfil inválidos", errors: parseResult.error.format() });
       }
       const { userId, email, ...profileData } = parseResult.data;
 
-      if (!userId || !email) { // Garantir que userId e email estão presentes para UserProfile
+      if (!userId || !email) {
         return res.status(400).json({ message: "userId e email são obrigatórios para o perfil" });
       }
 
-      const profileInput = {
+      profileInput = { // Atribuído aqui
         userId,
         email,
         name: profileData.name,
@@ -89,26 +98,39 @@ export function registerRoutes(app: Express): void {
         channels: profileData.channels,
       };
 
+      // A função storage.saveUserProfile AINDA é o ponto que precisa da lógica de upsert
       const profile = await storage.saveUserProfile(profileInput);
       return res.status(201).json(profile);
-    } catch (error) {
+    } catch (error: any) { // Tipagem básica
       console.error("Error saving profile:", error);
-      // Verificar se é um erro de constraint única (ex: email já existe)
-      if (error instanceof Error && error.message.includes("Unique constraint failed")) { // Adaptar para erro real do Prisma
-        return res.status(409).json({ message: "Erro ao salvar perfil: Conflito de dados (ex: email já existe)" });
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') { // Unique constraint violation
+          console.warn(`Tentativa de criar perfil duplicado. UserID: ${profileInput?.userId}, Email: ${profileInput?.email}. Erro P2002. Meta: ${JSON.stringify(error.meta)}`);
+          return res.status(409).json({
+            message: "Falha ao salvar perfil: Um perfil com este ID de usuário ou e-mail já existe.",
+            code: error.code,
+            target: error.meta?.target
+          });
+        }
+        // Outros erros conhecidos do Prisma
+        return res.status(500).json({
+          message: `Erro de banco de dados ao salvar perfil: ${error.code}`,
+          code: error.code
+        });
       }
-      return res.status(500).json({ message: "Erro ao salvar perfil" });
+      // Erros genéricos
+      return res.status(500).json({ message: "Erro interno do servidor ao salvar perfil" });
     }
   });
 
   app.put("/api/profile", async (req, res) => {
     try {
-      const userIdFromParams = req.query.userId as string; // Ou pegar de um parâmetro de rota /api/profile/:userId
+      const userIdFromParams = req.query.userId as string;
       if (!userIdFromParams) {
         return res.status(400).json({ message: "userId é obrigatório para atualizar o perfil" });
       }
 
-      const parseResult = onboardingSchema.safeParse(req.body); // Reusar schema, mas garantir que não inclua userId/email se não devem ser atualizáveis por este schema.
+      const parseResult = onboardingSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ message: "Dados de perfil inválidos", errors: parseResult.error.format() });
       }
@@ -127,22 +149,36 @@ export function registerRoutes(app: Express): void {
       };
 
       const profile = await storage.updateUserProfile(userIdFromParams, profileUpdateData);
+      if (!profile) { 
+          return res.status(404).json({ message: "Perfil não encontrado para atualização." });
+      }
       return res.json(profile);
-    } catch (error) {
+    } catch (error: any) { 
       console.error("Error updating profile:", error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') { 
+          return res.status(404).json({
+            message: `Perfil não encontrado para atualização: ${(error.meta?.cause as string) || 'ID não existe.'}`,
+            code: error.code
+          });
+        }
+        return res.status(500).json({
+          message: `Erro de banco de dados ao atualizar perfil: ${error.code}`,
+          code: error.code
+        });
+      }
       return res.status(500).json({ message: "Erro ao atualizar perfil" });
     }
   });
 
   // Content generation endpoint
   app.post("/api/generate", async (req, res) => {
+    let finalValidation: any; // Para uso no catch
     try {
-      // ALTERADO: Usar contentGenerationSchema para validar os dados do formulário
-      const parseResult = contentGenerationSchema.safeParse(req.body); 
+      const parseResult = contentGenerationSchema.safeParse(req.body);
       if(!parseResult.success) {
         return res.status(400).json({ message: "Dados para geração inválidos", errors: parseResult.error.format() });
       }
-      // Agora 'theme' estará disponível em parseResult.data
       const { userId, type, objective, tone, theme } = parseResult.data;
 
       if (!userId) {
@@ -214,8 +250,7 @@ export function registerRoutes(app: Express): void {
         status: "active",
       };
 
-      // Validar contentToSave com insertContentSchema antes de salvar (opcional, mas recomendado)
-      const finalValidation = insertContentSchema.safeParse(contentToSave);
+      finalValidation = insertContentSchema.safeParse(contentToSave);
       if (!finalValidation.success) {
         console.error("Erro de validação interna antes de salvar:", finalValidation.error.format());
         return res.status(500).json({ message: "Erro interno ao preparar dados para salvar."});
@@ -228,8 +263,17 @@ export function registerRoutes(app: Express): void {
         content: savedContent,
         generatedContent: generatedContentText // Manter este campo se o frontend o utiliza
       });
-    } catch (error) {
+    } catch (error: any) { 
       console.error("Error generating content:", error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return res.status(500).json({ 
+          message: `Erro de banco de dados ao gerar conteúdo: ${error.code}`,
+          code: error.code 
+        });
+      }
+      if (error instanceof OpenAI.APIError) { // Tratamento de erro da API OpenAI
+        return res.status(error.status || 500).json({ message: `Erro da API OpenAI: ${error.name}`, details: error.message });
+      }
       return res.status(500).json({ message: "Erro ao gerar conteúdo" });
     }
   });
@@ -252,8 +296,14 @@ export function registerRoutes(app: Express): void {
       
       const contents = await storage.getUserContents(userId, contentTypeFilter);
       return res.json(contents);
-    } catch (error) {
+    } catch (error: any) { 
       console.error("Error fetching content history:", error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return res.status(500).json({ 
+          message: `Erro de banco de dados ao buscar histórico: ${error.code}`,
+          code: error.code 
+        });
+      }
       return res.status(500).json({ message: "Erro ao buscar histórico" });
     }
   });
@@ -280,8 +330,20 @@ export function registerRoutes(app: Express): void {
       
       await storage.deleteContent(contentId);
       return res.status(200).json({ success: true, message: "Conteúdo excluído" });
-    } catch (error) {
+    } catch (error: any) { 
       console.error("Error deleting content:", error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') { 
+          return res.status(404).json({
+            message: `Conteúdo não encontrado para exclusão: ${(error.meta?.cause as string) || 'ID não existe.'}`,
+            code: error.code
+          });
+        }
+        return res.status(500).json({ 
+          message: `Erro de banco de dados ao excluir conteúdo: ${error.code}`,
+          code: error.code 
+        });
+      }
       return res.status(500).json({ message: "Erro ao excluir conteúdo" });
     }
   });
@@ -299,8 +361,14 @@ export function registerRoutes(app: Express): void {
         return res.json({ amount: 0 });
       }
       return res.json(credits);
-    } catch (error) {
+    } catch (error: any) { 
       console.error("Error fetching credits:", error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return res.status(500).json({ 
+          message: `Erro de banco de dados ao buscar créditos: ${error.code}`,
+          code: error.code 
+        });
+      }
       return res.status(500).json({ message: "Erro ao buscar créditos" });
     }
   });
@@ -317,10 +385,16 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: "userId e amount são obrigatórios" });
       }
       
-      const credits = await storage.updateUserCredits(userId, amount, source || "admin");
-      return res.json(credits);
-    } catch (error) {
+      const creditsData = await storage.updateUserCredits(userId, amount, source || "admin");
+      return res.json(creditsData);
+    } catch (error: any) { 
       console.error("Error adding credits:", error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return res.status(500).json({ 
+          message: `Erro de banco de dados ao adicionar créditos: ${error.code}`,
+          code: error.code 
+        });
+      }
       return res.status(500).json({ message: "Erro ao adicionar créditos" });
     }
   });

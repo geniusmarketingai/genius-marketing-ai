@@ -560,7 +560,7 @@
 **Próximos Passos Sugeridos:**
 
 *   **Usuário:** Verificar os logs de runtime das funções no painel do Vercel (aba "Functions" > Logs) utilizando os IDs de invocação para encontrar os erros detalhados.
-*   **Assistente (Paralelamente):** Analisar o código do frontend responsável pela chamada a `/api/profile` (etapa do "funil") para entender os dados enviados, assim que o usuário indicar o arquivo/componente relevante.
+*   **Assistente (Paralelamente):** Analisar o código da rota `POST /api/profile` para entender os dados enviados, assim que o usuário indicar o arquivo/componente relevante.
 *   Revisar a configuração das variáveis de ambiente no Vercel, especialmente `DATABASE_URL` e `OPENAI_API_KEY`.
 *   Com base nos logs do Vercel, identificar a causa raiz (ex: erro de código na função, problema de conexão com o banco, variável de ambiente ausente/incorreta) e propor a correção.
 
@@ -595,7 +595,7 @@
 *   **Realizar um novo deploy no Vercel** com as alterações no `api/tsconfig.json`.
 *   **Monitorar os logs de build e runtime do Vercel:**
     *   Verificar se o build da API é bem-sucedido.
-    *   Testar as funcionalidades de login e perfil para confirmar se o erro `FUNCTION_INVOCATION_FAILED` / `exports is not defined` foi resolvido.
+    *   Testar as funcionalidades de login e perfil para confirmar se o erro `FUNCTION_INVOCATION_FAILED` foi resolvido.
 *   Se o erro persistir, analisar detalhadamente os logs do Vercel para entender como os arquivos da API estão sendo compilados e executados no ambiente Vercel.
 *   Se o erro for relacionado ao `allowImportingTsExtensions` no build do Vercel, considerar remover essa linha do `api/tsconfig.json`.
 
@@ -694,107 +694,86 @@
     *   Realizar um novo deploy no Vercel e testar exaustivamente as funcionalidades de login, criação/atualização de perfil.
 *   **Assistente:**
     *   Aguardar feedback do usuário após a aplicação das correções.
-    *   Se os problemas persistirem, analisar os novos logs do Vercel.
+    *   Se os problemas forem resolvidos, considerar os próximos passos no desenvolvimento do projeto.
+    *   Se ainda houver problemas, analisar os novos logs e o comportamento da aplicação.
 
 ---
-## 2024-07-31: Diagnóstico de Erro P2022 (Coluna Inexistente no Banco) Após Correção da DATABASE_URL
+## 2024-07-31: Diagnóstico de Erro P2002 (Unique Constraint Failed) na Criação de UserProfile
 
 **Sumário Técnico do Progresso:**
 
-*   Após a correção da `DATABASE_URL` e novo deploy, os erros de conexão com o banco (`PrismaClientInitializationError`) foram resolvidos. A aplicação agora consegue se conectar ao Supabase.
-*   Surgiram novos erros do tipo `PrismaClientKnownRequestError` (código `P2022`), indicando que colunas esperadas pelo Prisma não existem no banco de dados Supabase:
-    *   `UserProfile.userId` (ou `user_profile.userId`)
-    *   `User.createdAt` (reportado como `users.createdAt`)
-*   Isso aponta para uma dessincronização entre o `prisma/schema.prisma` e a estrutura real das tabelas no banco de dados Supabase.
+*   Após os mapeamentos de nome de coluna no `prisma/schema.prisma`, os erros `P2022` ("Coluna Inexistente") foram resolvidos para os campos mapeados.
+*   Surgiu um novo erro `PrismaClientKnownRequestError` (código `P2002` - Unique constraint failed) nas chamadas `POST /api/profile` ao tentar `prisma.userProfile.create()`. O erro indica que está se tentando criar um perfil com um `user_id` que já existe.
+*   Observado que uma das chamadas `POST /api/profile` obteve sucesso com Status 201 (Created), mas uma chamada subsequente `GET /api/profile` resultou em 404 (Not Found).
+*   As chamadas para `/api/user` continuam retornando status 200.
 
 **Decisões Chave e Justificativas:**
 
-*   A conexão com o banco está funcional, o problema agora é de schema.
-*   A causa provável é que as migrações aplicadas anteriormente não correspondem totalmente ao `schema.prisma` atual, ou o schema foi alterado sem a correspondente migração para o banco.
+*   O erro P2002 aponta para uma falha na lógica da rota `POST /api/profile`, que provavelmente está tentando criar um perfil de usuário (`prisma.userProfile.create()`) sem verificar se um perfil para aquele `user_id` já existe.
+*   A lógica precisa ser ajustada para realizar uma operação de "upsert" (atualizar se existe, criar se não existe) ou uma verificação explícita antes da criação.
 
 **Próximos Passos Sugeridos:**
 
 *   **Usuário:**
-    *   Fornecer o conteúdo completo do arquivo `prisma/schema.prisma`.
+    *   Fornecer o código da rota `POST /api/profile` do arquivo `api/_lib/routes.ts`.
 *   **Assistente:**
-    *   Analisar o `schema.prisma` fornecido.
-    *   Comparar com as informações de migrações anteriores no `progress_log.md`.
-    *   Propor uma estratégia para sincronizar o schema do Prisma com o banco de dados Supabase. Isso pode envolver:
-        *   Ajustar o `schema.prisma` (ex: usando `@map` para nomes de colunas).
-        *   Gerar e aplicar uma nova migração Prisma (`prisma migrate dev`) para adicionar/alterar colunas no banco.
-        *   Considerar `prisma db pull` se o banco for a fonte da verdade e o schema Prisma precisar ser atualizado.
+    *   Analisar o código da rota `POST /api/profile`.
+    *   Propor modificações para implementar a lógica de "upsert" ou "find then update/create" para o `UserProfile`.
+    *   Investigar a causa do `GET /api/profile` retornar 404 após um POST bem-sucedido.
 
 ---
-## 2024-07-31: Aplicação de `@map` no Schema Prisma para Corrigir Nomes de Colunas
+## 2024-07-31: Melhoria no Tratamento de Erros em `api/_lib/routes.ts`
 
 **Sumário Técnico do Progresso:**
 
-*   Com base na análise do `prisma/schema.prisma` e dos erros `P2022`, foi identificada uma provável divergência entre nomes de campos camelCase no Prisma (ex: `userId`, `createdAt`) e nomes de colunas snake_case no banco de dados (ex: `user_id`, `created_at`).
-*   O arquivo `prisma/schema.prisma` foi modificado para incluir atributos `@map("nome_da_coluna_snake_case")` nos seguintes campos e modelos:
-    *   `UserProfile`: `userId`, `createdAt`, `updatedAt`
-    *   `Content`: `userId`, `createdAt`, `updatedAt`
-    *   `Credit`: `userId`, `createdAt`
-    *   `User`: `createdAt`, `updatedAt`
-*   Esta alteração visa alinhar o schema do Prisma com a nomenclatura esperada no banco de dados.
+*   O arquivo `api/_lib/routes.ts` foi modificado para:
+    *   Melhorar a tipagem dos objetos de erro nos blocos `catch` (usando `error: any` como solução paliativa para o linter).
+    *   Implementar um tratamento mais específico para o erro `P2002` (Unique Constraint Failed) na rota `POST /api/profile`, retornando um status `409 Conflict` com uma mensagem mais clara.
+    *   Garantir acesso seguro a `error.code` após verificar `instanceof Prisma.PrismaClientKnownRequestError`.
+    *   Combinar importações de `@prisma/client`.
+*   Esta alteração visa fornecer feedback mais preciso ao frontend em caso de tentativa de criação de perfil duplicado, mas não resolve a causa raiz do P2002, que reside na lógica de `storage.saveUserProfile`.
+*   Os erros de linter relacionados a `rootDir` e à não localização de `@prisma/client` no ambiente de desenvolvimento local persistem, mas espera-se que o build do Vercel os resolva.
 
 **Decisões Chave e Justificativas:**
 
-*   Utilização do atributo `@map` do Prisma como primeira tentativa para resolver a dessincronização de nomes de colunas, por ser uma solução declarativa e não invasiva (não altera o banco diretamente).
+*   Melhorar a robustez e a clareza do tratamento de erros nas rotas da API.
+*   Preparar o terreno para a correção definitiva do erro P2002, que exigirá a modificação de `storage.saveUserProfile` para usar uma lógica de `upsert`.
 
 **Próximos Passos Sugeridos:**
 
 *   **Usuário:**
-    *   Realizar um novo deploy da aplicação no Vercel. O Vercel deverá executar `prisma generate` automaticamente se estiver configurado no `postinstall` do `package.json`.
-    *   Testar exaustivamente as funcionalidades de login, criação e atualização de perfil para verificar se os erros `P2022` foram resolvidos.
+    *   Fornecer o conteúdo do arquivo `api/_lib/prisma-storage.ts` (ou onde quer que `storage.saveUserProfile` esteja implementado).
+*   **Assistente:**
+    *   Analisar o `prisma-storage.ts`.
+    *   Modificar a função `saveUserProfile` para utilizar `prisma.userProfile.upsert()` para criar um novo perfil ou atualizar um existente com base no `userId`.
+    *   Após a modificação e deploy, testar novamente o fluxo de criação/atualização de perfil.
+
+---
+## 2024-07-31: Implementação de `upsert` em `storage.saveUserProfile` para Resolver Erro P2002
+
+**Sumário Técnico do Progresso:**
+
+*   A função `saveUserProfile` no arquivo `api/_lib/prisma-storage.ts` foi modificada para utilizar `prisma.userProfile.upsert()` em vez de `prisma.userProfile.create()`.
+    *   O `upsert` usa `userId` como condição no `where`.
+    *   Os dados completos do perfil são passados para `create`.
+    *   Os dados do perfil (exceto `userId`) são passados para `update`.
+*   A função `updateUserProfile` no mesmo arquivo foi ajustada para capturar o erro `P2025` (registro não encontrado) e retornar `null` explicitamente, em vez de apenas relançar o erro.
+*   Esta alteração visa resolver definitivamente o erro `P2002` (Unique Constraint Failed) que ocorria ao tentar criar um `UserProfile` para um `userId` que já possuía um perfil.
+
+**Decisões Chave e Justificativas:**
+
+*   Adoção da operação `upsert` do Prisma como a solução correta para a lógica de "criar ou atualizar" um registro, garantindo a atomicidade e prevenindo erros de constraint única.
+
+**Próximos Passos Sugeridos:**
+
+*   **Usuário:**
+    *   Realizar um novo deploy da aplicação no Vercel.
+    *   Testar exaustivamente o fluxo de criação de perfil (para um novo usuário) e o fluxo de atualização de perfil (enviando novos dados para um usuário existente).
+    *   Verificar se os erros `P2002` na rota `POST /api/profile` foram completamente eliminados.
+    *   Confirmar que a rota `GET /api/profile` retorna os dados corretos após as operações de criação/atualização.
 *   **Assistente:**
     *   Aguardar o resultado dos testes do usuário.
-    *   Se os erros `P2022` persistirem, investigar se as colunas estão de fato ausentes (e não apenas com nomes diferentes), o que exigiria uma migração para adicioná-las ao banco.
-
----
-## 2024-07-31: Continuação da Aplicação de `@map` no Schema Prisma (Campo `businessType`)
-
-**Sumário Técnico do Progresso:**
-
-*   Após o mapeamento anterior de `userId`, `createdAt`, e `updatedAt`, os erros `P2022` persistiram, mas mudaram para o campo `businessType` no modelo `UserProfile`.
-*   Os logs indicaram que a coluna `businessType` (ou `user_profile.businessType`) não existe no banco, sugerindo a necessidade de mapeá-la para `business_type`.
-*   O arquivo `prisma/schema.prisma` foi modificado para adicionar `@map("business_type")` ao campo `businessType` do modelo `UserProfile`.
-*   As chamadas para `/api/user` continuam retornando status 200.
-
-**Decisões Chave e Justificativas:**
-
-*   Aplicação consistente da estratégia de usar `@map` para alinhar os nomes de campos do Prisma com os nomes de colunas snake_case do banco de dados.
-
-**Próximos Passos Sugeridos:**
-
-*   **Usuário:**
-    *   Realizar um novo deploy da aplicação no Vercel.
-    *   Testar as funcionalidades de criação e atualização de perfil.
-    *   Verificar se os erros `P2022` para `businessType` foram resolvidos. Se o modelo `UserProfile` tiver mais campos que seguem a convenção snake_case no banco, erros similares podem surgir para eles. O campo `channels` é um candidato a ser observado, embora seu tipo array possa ter um comportamento diferente.
-*   **Assistente:**
-    *   Aguardar o resultado dos testes.
-    *   Se todos os erros de mapeamento de colunas no modelo `UserProfile` forem resolvidos, as operações de criação e leitura de perfil devem funcionar. Caso contrário, e se não houver mais erros P2022, investigar outras possíveis causas.
-
----
-## 2024-07-31: Mapeamento do Campo `targetPersona` no Schema Prisma
-
-**Sumário Técnico do Progresso:**
-
-*   Após o mapeamento de `businessType`, os erros `P2022` passaram a indicar a ausência da coluna `targetPersona` (ou `user_profile.targetPersona`) no banco de dados.
-*   O arquivo `prisma/schema.prisma` foi modificado para adicionar `@map("target_persona")` ao campo `targetPersona` do modelo `UserProfile`.
-*   As chamadas para `/api/user` continuam retornando status 200.
-
-**Decisões Chave e Justificativas:**
-
-*   Aplicação consistente da estratégia de usar `@map` para alinhar os nomes de campos do Prisma com os nomes de colunas snake_case do banco de dados.
-
-**Próximos Passos Sugeridos:**
-
-*   **Usuário:**
-    *   Realizar um novo deploy da aplicação no Vercel.
-    *   Testar as funcionalidades de criação e atualização de perfil.
-    *   Verificar se os erros `P2022` para `targetPersona` foram resolvidos. Se o modelo `UserProfile` tiver mais campos que seguem a convenção snake_case no banco, erros similares podem surgir para eles. O campo `channels` é um candidato a ser observado, embora seu tipo array possa ter um comportamento diferente.
-*   **Assistente:**
-    *   Aguardar o resultado dos testes.
-    *   Se todos os erros de mapeamento de colunas no modelo `UserProfile` forem resolvidos, as operações de criação e leitura de perfil devem funcionar. Caso contrário, e se não houver mais erros P2022, investigar outras possíveis causas.
+    *   Se os problemas forem resolvidos, considerar os próximos passos no desenvolvimento do projeto.
+    *   Se ainda houver problemas, analisar os novos logs e o comportamento da aplicação.
 
 ---
