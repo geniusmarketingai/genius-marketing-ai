@@ -9,14 +9,14 @@ datasource db {
 
 model UserProfile {
   id             String   @id @default(uuid())
-  userId         String   @unique
+  userId         String   @unique @map("user_id")
   email          String   @unique
   name           String?
   businessType   String?
   targetPersona  String?
   channels       String[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_profile")
@@ -24,15 +24,15 @@ model UserProfile {
 
 model Content {
   id          String      @id @default(uuid())
-  userId      String
+  userId      String      @map("user_id")
   type        ContentType
   title       String?
   body        String
   tone        String?
   objective   String?
   status      String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -41,10 +41,10 @@ model Content {
 
 model Credit {
   id         String   @id @default(uuid())
-  userId     String
+  userId     String   @map("user_id")
   amount     Int
   source     String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @map("created_at")
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("credits")
@@ -61,8 +61,8 @@ enum ContentType {
 model User {
   id        String       @id @default(uuid()) 
   email     String       @unique
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
   profile   UserProfile?
   contents  Content[]
   credits   Credit[]

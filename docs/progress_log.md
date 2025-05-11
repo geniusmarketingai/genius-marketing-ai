@@ -617,8 +617,9 @@
 **Próximos Passos Sugeridos:**
 
 *   Realizar um novo deploy no Vercel com a correção no import.
-*   Testar novamente os fluxos de autenticação e perfil para verificar se os erros `FUNCTION_INVOCATION_FAILED` e `ERR_MODULE_NOT_FOUND` foram resolvidos.
-*   Monitorar os logs do Vercel para quaisquer novos problemas.
+*   Testar novamente os fluxos de autenticação e perfil.
+*   Se outros erros `ERR_MODULE_NOT_FOUND` aparecerem, aplicar a mesma correção de adicionar a extensão `.js` aos imports relativos nos arquivos TypeScript correspondentes.
+*   Monitorar os logs do Vercel.
 
 ---
 ## 2024-07-30: Correção de `ERR_MODULE_NOT_FOUND` para `./prisma-client` na API
@@ -640,3 +641,113 @@
 *   Testar novamente os fluxos de autenticação e perfil.
 *   Se outros erros `ERR_MODULE_NOT_FOUND` aparecerem, aplicar a mesma correção de adicionar a extensão `.js` aos imports relativos nos arquivos TypeScript correspondentes.
 *   Monitorar os logs do Vercel.
+
+---
+## 2024-07-31: Investigação Detalhada das Variáveis de Ambiente no Vercel
+
+**Sumário Técnico do Progresso:**
+
+*   Analisada a configuração das variáveis de ambiente no Vercel com base na imagem fornecida pelo usuário.
+*   Confirmado que `DATABASE_URL` (para backend/Prisma) e `VITE_SUPABASE_URL` (para frontend/Supabase Client JS) têm formatos e propósitos distintos, e a distinção parece correta na configuração.
+*   Observado que `OPENAI_API_KEY` (para backend) e `VITE_OPENAI_API_KEY` (potencialmente para frontend) possuem o mesmo valor.
+*   O erro `PrismaClientInitializationError: Can't reach database server` persiste, indicando um problema com a `DATABASE_URL` utilizada pelo backend.
+
+**Decisões Chave e Justificativas:**
+
+*   Esclarecida a função de cada variável de ambiente (`DATABASE_URL`, `VITE_SUPABASE_URL`, `OPENAI_API_KEY`, `VITE_OPENAI_API_KEY`).
+*   Reforçada a hipótese de que o erro de conexão com o banco está ligado à `DATABASE_URL`, provavelmente devido a uma senha incorreta na string de conexão ou o banco Supabase estar inacessível/pausado.
+*   Recomendada a remoção da `VITE_OPENAI_API_KEY` se não estiver em uso no frontend, por questões de segurança e clareza.
+
+**Próximos Passos Sugeridos:**
+
+*   **Usuário:**
+    *   **Verificar meticulosamente a senha do banco de dados PostgreSQL dentro da string da `DATABASE_URL` no Vercel.** Esta senha é encontrada/gerenciada no painel do Supabase (Configurações do Projeto > Banco de Dados).
+    *   Confirmar que o projeto Supabase e o banco de dados estão ativos.
+    *   Após qualquer correção na `DATABASE_URL`, realizar um novo deploy no Vercel e testar exaustivamente as funcionalidades.
+    *   Informar se `VITE_OPENAI_API_KEY` está sendo utilizada no frontend; caso contrário, considerar removê-la.
+*   **Assistente:**
+    *   Aguardar feedback do usuário sobre a verificação e correção da `DATABASE_URL`.
+    *   Se o problema persistir após a confirmação da `DATABASE_URL`, explorar outras causas menos prováveis.
+
+---
+## 2024-07-31: Correção da String de Conexão do Banco de Dados (DATABASE_URL)
+
+**Sumário Técnico do Progresso:**
+
+*   Analisada a `DATABASE_URL` atual do usuário e as opções de string de conexão fornecidas pelo Supabase.
+*   Identificado que a `DATABASE_URL` atual (`postgresql://postgres:SBomb@@@046804680468@...`) estava provavelmente malformada na seção da senha e utilizava o formato de "Direct Connection".
+*   Recomendado o uso da string de conexão do tipo **Transaction Pooler** para o ambiente Vercel Serverless Functions, por ser mais adequado para conexões stateless e curtas, além de ser compatível com IPv4.
+*   Instruído o usuário a adicionar o parâmetro `?pgbouncer=true` ao final da string de conexão do Transaction Pooler para otimizar a compatibilidade com Prisma.
+
+**Decisões Chave e Justificativas:**
+
+*   Adoção do Transaction Pooler do Supabase para a `DATABASE_URL` no Vercel, visando melhor performance e compatibilidade em um ambiente serverless.
+*   Formato recomendado: `postgresql://postgres.YOUR_PROJECT_ID:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true`
+*   Orientação para o usuário verificar/resetar a senha do banco de dados no painel do Supabase e utilizá-la na nova string.
+
+**Próximos Passos Sugeridos:**
+
+*   **Usuário:**
+    *   Obter/Resetar a senha do banco de dados PostgreSQL no painel do Supabase.
+    *   Atualizar a variável de ambiente `DATABASE_URL` no Vercel para o formato do Transaction Pooler, incluindo a senha correta e o sufixo `?pgbouncer=true`.
+    *   Remover a variável `VITE_OPENAI_API_KEY` do Vercel se não estiver sendo usada diretamente no frontend.
+    *   Realizar um novo deploy no Vercel e testar exaustivamente as funcionalidades de login, criação/atualização de perfil.
+*   **Assistente:**
+    *   Aguardar feedback do usuário após a aplicação das correções.
+    *   Se os problemas persistirem, analisar os novos logs do Vercel.
+
+---
+## 2024-07-31: Diagnóstico de Erro P2022 (Coluna Inexistente no Banco) Após Correção da DATABASE_URL
+
+**Sumário Técnico do Progresso:**
+
+*   Após a correção da `DATABASE_URL` e novo deploy, os erros de conexão com o banco (`PrismaClientInitializationError`) foram resolvidos. A aplicação agora consegue se conectar ao Supabase.
+*   Surgiram novos erros do tipo `PrismaClientKnownRequestError` (código `P2022`), indicando que colunas esperadas pelo Prisma não existem no banco de dados Supabase:
+    *   `UserProfile.userId` (ou `user_profile.userId`)
+    *   `User.createdAt` (reportado como `users.createdAt`)
+*   Isso aponta para uma dessincronização entre o `prisma/schema.prisma` e a estrutura real das tabelas no banco de dados Supabase.
+
+**Decisões Chave e Justificativas:**
+
+*   A conexão com o banco está funcional, o problema agora é de schema.
+*   A causa provável é que as migrações aplicadas anteriormente não correspondem totalmente ao `schema.prisma` atual, ou o schema foi alterado sem a correspondente migração para o banco.
+
+**Próximos Passos Sugeridos:**
+
+*   **Usuário:**
+    *   Fornecer o conteúdo completo do arquivo `prisma/schema.prisma`.
+*   **Assistente:**
+    *   Analisar o `schema.prisma` fornecido.
+    *   Comparar com as informações de migrações anteriores no `progress_log.md`.
+    *   Propor uma estratégia para sincronizar o schema do Prisma com o banco de dados Supabase. Isso pode envolver:
+        *   Ajustar o `schema.prisma` (ex: usando `@map` para nomes de colunas).
+        *   Gerar e aplicar uma nova migração Prisma (`prisma migrate dev`) para adicionar/alterar colunas no banco.
+        *   Considerar `prisma db pull` se o banco for a fonte da verdade e o schema Prisma precisar ser atualizado.
+
+---
+## 2024-07-31: Aplicação de `@map` no Schema Prisma para Corrigir Nomes de Colunas
+
+**Sumário Técnico do Progresso:**
+
+*   Com base na análise do `prisma/schema.prisma` e dos erros `P2022`, foi identificada uma provável divergência entre nomes de campos camelCase no Prisma (ex: `userId`, `createdAt`) e nomes de colunas snake_case no banco de dados Supabase (ex: `user_id`, `created_at`).
+*   O arquivo `prisma/schema.prisma` foi modificado para incluir atributos `@map("nome_da_coluna_snake_case")` nos seguintes campos e modelos:
+    *   `UserProfile`: `userId`, `createdAt`, `updatedAt`
+    *   `Content`: `userId`, `createdAt`, `updatedAt`
+    *   `Credit`: `userId`, `createdAt`
+    *   `User`: `createdAt`, `updatedAt`
+*   Esta alteração visa alinhar o schema do Prisma com a nomenclatura esperada no banco de dados.
+
+**Decisões Chave e Justificativas:**
+
+*   Utilização do atributo `@map` do Prisma como primeira tentativa para resolver a dessincronização de nomes de colunas, por ser uma solução declarativa e não invasiva (não altera o banco diretamente).
+
+**Próximos Passos Sugeridos:**
+
+*   **Usuário:**
+    *   Realizar um novo deploy da aplicação no Vercel. O Vercel deverá executar `prisma generate` automaticamente se estiver configurado no `postinstall` do `package.json`.
+    *   Testar exaustivamente as funcionalidades de login, criação e atualização de perfil para verificar se os erros `P2022` foram resolvidos.
+*   **Assistente:**
+    *   Aguardar o resultado dos testes do usuário.
+    *   Se os erros `P2022` persistirem, investigar se as colunas estão de fato ausentes (e não apenas com nomes diferentes), o que exigiria uma migração para adicioná-las ao banco.
+
+---
