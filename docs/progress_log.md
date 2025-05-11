@@ -484,3 +484,61 @@
 *   Realizar um novo deploy na Vercel para que a nova página esteja disponível no ambiente de produção.
 *   Considerar adicionar um link para esta página na Política de Privacidade ou nos Termos de Uso, caso relevante, ou em um local específico exigido pelas diretrizes do Facebook para desenvolvedores.
 *   Continuar com as demais tarefas de desenvolvimento da aplicação.
+
+---
+## 2024-07-30: Configuração dos Provedores de Autenticação OAuth (Google e Facebook)
+
+**Sumário Técnico do Progresso:**
+
+*   O usuário configurou os provedores de autenticação OAuth para Google e Facebook diretamente no painel do Supabase.
+*   Foram fornecidas capturas de tela confirmando a ativação e configuração dos Client IDs e Client Secrets para ambos os provedores.
+*   As URLs de Callback OAuth estão configuradas para o endpoint padrão do Supabase (`https://hvhhqkjmdncrigejtvhh.supabase.co/auth/v1/callback`).
+
+**Decisões Chave e Justificativas:**
+
+*   Utilização dos recursos nativos de autenticação OAuth do Supabase para simplificar a integração com provedores populares.
+*   Esta configuração é um pré-requisito para implementar as funcionalidades de login social na aplicação.
+
+**Próximos Passos Sugeridos:**
+
+*   Atualizar o hook `client/src/hooks/useAuth.tsx` para incluir funções que interajam com os provedores OAuth (`signInWithOAuth`), além de funções para login com email/senha (`signInWithPassword`) e cadastro (`signUp`).
+*   Desenvolver a interface do usuário no componente `client/src/components/Auth.tsx` para apresentar as opções de login (email/senha, Google, Facebook) e o link para criação de conta.
+*   Implementar a lógica de chamada às funções de autenticação do Supabase através do hook `useAuth`.
+*   Considerar a criação de uma página/componente dedicado para o formulário de cadastro de novos usuários.
+
+---
+## 2024-07-30: Refatoração da Tela de Login/Cadastro (`Auth.tsx`)
+
+**Sumário Técnico do Progresso:**
+
+*   O componente `client/src/components/Auth.tsx` foi refatorado para melhorar a experiência do usuário, separando visualmente os fluxos de login e cadastro.
+*   **Novos Estados Adicionados:**
+    *   `isSignUpMode` (booleano): Controla a exibição do formulário de login ou cadastro.
+    *   `confirmPassword` (string): Armazena o valor do campo de confirmação de senha.
+*   **Mudanças na UI e Lógica:**
+    *   Um campo "Confirmar Senha" foi adicionado e é exibido apenas quando `isSignUpMode` é `true`.
+    *   A função `handleSignUp` agora valida se as senhas (principal e confirmação) coincidem e se a senha tem o mínimo de 6 caracteres.
+    *   O formulário principal agora tem uma função `handleSubmit` unificada que chama `handleLogin` ou `handleSignUp` com base no `isSignUpMode`.
+    *   O botão de submissão principal adapta seu texto ("Entrar" ou "Cadastrar") conforme o modo.
+    *   Foram adicionados links de texto ("Não tem uma conta? Cadastre-se" / "Já tem uma conta? Faça login") para alternar o `isSignUpMode`.
+    *   Ao realizar o cadastro com sucesso, o formulário retorna para o modo de login.
+    *   Os campos do formulário são limpos ao alternar entre os modos.
+    *   Os botões de login social (Google/Facebook) foram ajustados para melhor responsividade em diferentes tamanhos de tela.
+
+**Decisões Chave e Justificativas:**
+
+*   Melhorar a clareza da interface de autenticação, tornando mais explícita a distinção entre login e cadastro.
+*   Adicionar a confirmação de senha é uma prática padrão para reduzir erros de digitação durante o cadastro.
+*   Unificar o `onSubmit` do formulário simplifica a lógica de manipulação de eventos.
+
+**Próximos Passos Sugeridos:**
+
+*   Testar exaustivamente todos os fluxos de autenticação no frontend:
+    *   Login com email/senha (sucesso e falha).
+    *   Cadastro com email/senha (sucesso, senhas não coincidem, senha curta).
+    *   Login com Google.
+    *   Login com Facebook.
+*   Verificar se os toasts de sucesso e erro estão sendo exibidos corretamente.
+*   Garantir que o redirecionamento após login/cadastro esteja funcionando conforme o esperado (usuário deve ser levado para a página principal da aplicação se o perfil estiver completo, ou para a página de completar perfil caso contrário).
+*   Verificar se as variáveis de ambiente do Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) estão corretamente configuradas no Vercel e localmente.
+*   Considerar adicionar ícones aos botões de login social (Google/Facebook) como uma melhoria visual futura.

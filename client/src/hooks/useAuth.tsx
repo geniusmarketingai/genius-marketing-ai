@@ -128,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider_0,
       options: {
-        // redirectTo: `${window.location.origin}/` // Opcional, Supabase geralmente lida bem com isso se Site URL estiver configurado.
+        redirectTo: `${window.location.origin}/` // Garante o redirecionamento para a raiz da aplicação.
         // queryParams: provider === 'google' ? { access_type: 'offline', prompt: 'consent' } : undefined, // Exemplo para Google
       },
     });

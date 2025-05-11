@@ -5,16 +5,27 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+// import { Chrome, Facebook } from 'lucide-react'; // Exemplo se for usar lucide-react
 
 export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // Novo estado
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignUpMode, setIsSignUpMode] = useState(false); // Novo estado
   const { signInWithPassword, signUp, signInWithOAuth } = useAuth();
   const { toast } = useToast();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSignUpMode) {
+      await handleSignUp();
+    } else {
+      await handleLogin();
+    }
+  };
+
+  const handleLogin = async () => {
     setIsLoading(true);
     const { error } = await signInWithPassword(email, password);
     setIsLoading(false);
@@ -27,36 +38,46 @@ export default function Auth() {
   };
 
   const handleSignUp = async () => {
-    setIsLoading(true);
-    // Validação básica, idealmente usar Zod aqui
-    if (password.length < 6) {
-        toast({ title: "Erro no Cadastro", description: "Senha deve ter no mínimo 6 caracteres.", variant: "destructive" });
-        setIsLoading(false);
-        return;
+    if (password !== confirmPassword) {
+      toast({ title: "Erro no Cadastro", description: "As senhas não coincidem.", variant: "destructive" });
+      return;
     }
+    if (password.length < 6) {
+      toast({ title: "Erro no Cadastro", description: "Senha deve ter no mínimo 6 caracteres.", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
     const { error: signUpError, data: signUpData } = await signUp(email, password);
     setIsLoading(false);
     if (signUpError) {
       toast({ title: "Erro no Cadastro", description: signUpError.message, variant: "destructive" });
     } else if (signUpData.user?.identities?.length === 0) {
-        // Pode acontecer se a confirmação de email estiver ativa e o email já existe mas não confirmado
-        toast({ title: "Verificação Pendente", description: "Usuário já registrado mas e-mail não confirmado. Verifique seu e-mail ou contate suporte se o problema persistir.", variant: "default", duration: 10000 });
+      toast({ title: "Verificação Pendente", description: "Usuário já registrado mas e-mail não confirmado. Verifique seu e-mail ou contate suporte se o problema persistir.", variant: "default", duration: 10000 });
     } else if (signUpData.user) {
-      toast({ title: "Cadastro realizado!", description: "Você já pode fazer login." });
+      toast({ title: "Cadastro realizado!", description: "Você pode fazer login agora." });
+      setIsSignUpMode(false); // Volta para o modo de login após cadastro bem-sucedido
+      setConfirmPassword(''); // Limpa o campo de confirmar senha
     } else {
-      // Fallback para outros cenários de 'sucesso' sem usuário, como quando confirmação de email é necessária
-       toast({ title: "Verifique seu e-mail", description: "Se o cadastro foi bem-sucedido, um e-mail de confirmação pode ter sido enviado (se configurado).", variant: "default", duration: 10000 });
+      toast({ title: "Verifique seu e-mail", description: "Se o cadastro foi bem-sucedido, um e-mail de confirmação pode ter sido enviado (se configurado).", variant: "default", duration: 10000 });
     }
   };
 
   const handleOAuthSignIn = async (provider: 'google' | 'facebook') => {
     setIsLoading(true);
     const { error } = await signInWithOAuth(provider);
-    setIsLoading(false);
+    // Não precisa setar setIsLoading(false) aqui, pois a página será redirecionada
     if (error) {
       toast({ title: `Erro com ${provider}`, description: error.message, variant: "destructive" });
+      setIsLoading(false); // Só setar se houver erro e não houver redirecionamento
     }
     // O redirecionamento é tratado pelo Supabase e o App.tsx detectará a mudança de sessão
+  };
+
+  const toggleMode = () => {
+    setIsSignUpMode(!isSignUpMode);
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -65,10 +86,12 @@ export default function Auth() {
         <CardContent className="pt-6">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-primary mb-2">Genius Marketing AI</h1>
-            <p className="text-muted-foreground">Acesse sua conta ou crie uma nova</p>
+            <p className="text-muted-foreground">
+              {isSignUpMode ? 'Crie sua nova conta' : 'Acesse sua conta'}
+            </p>
           </div>
           
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <Label htmlFor="email">E-mail</Label>
               <Input 
@@ -90,26 +113,51 @@ export default function Auth() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required 
+                minLength={isSignUpMode ? 6 : undefined} // Garante mínimo de 6 para cadastro no input
                 disabled={isLoading}
               />
             </div>
+            {isSignUpMode && (
+              <div className="space-y-1">
+                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                <Input 
+                  type="password" 
+                  id="confirmPassword" 
+                  placeholder="********" 
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required 
+                  minLength={6}
+                  disabled={isLoading}
+                />
+              </div>
+            )}
             <Button 
               type="submit" 
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? 'Entrando...' : 'Entrar'}
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              className="w-full" 
-              onClick={handleSignUp}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Processando...' : 'Criar Nova Conta'}
+              {isLoading ? 'Processando...' : (isSignUpMode ? 'Cadastrar' : 'Entrar')}
             </Button>
           </form>
+
+          <div className="mt-4 text-center text-sm">
+            {isSignUpMode ? (
+              <>
+                Já tem uma conta?{' '}
+                <Button variant="link" onClick={toggleMode} className="p-0 h-auto font-semibold" disabled={isLoading}>
+                  Faça login
+                </Button>
+              </>
+            ) : (
+              <>
+                Não tem uma conta?{' '}
+                <Button variant="link" onClick={toggleMode} className="p-0 h-auto font-semibold" disabled={isLoading}>
+                  Cadastre-se
+                </Button>
+              </>
+            )}
+          </div>
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
@@ -122,13 +170,23 @@ export default function Auth() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" onClick={() => handleOAuthSignIn('google')} disabled={isLoading}>
-              {/* Substituir por um ícone do Google depois */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => handleOAuthSignIn('google')} 
+              disabled={isLoading}
+              className="w-full" // Garante que o botão ocupe toda a largura da coluna
+            >
+              {/* <Chrome className="mr-2 h-4 w-4" /> Exemplo com Lucide */}
               {isLoading ? 'Aguarde...' : 'Google'}
             </Button>
-            <Button variant="outline" onClick={() => handleOAuthSignIn('facebook')} disabled={isLoading}>
-              {/* Substituir por um ícone do Facebook depois */}
+            <Button 
+              variant="outline" 
+              onClick={() => handleOAuthSignIn('facebook')} 
+              disabled={isLoading}
+              className="w-full" // Garante que o botão ocupe toda a largura da coluna
+            >
+              {/* <Facebook className="mr-2 h-4 w-4" /> Exemplo com Lucide */}
               {isLoading ? 'Aguarde...' : 'Facebook'}
             </Button>
           </div>
