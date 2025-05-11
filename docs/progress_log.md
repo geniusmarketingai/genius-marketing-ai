@@ -621,11 +621,11 @@
 *   Monitorar os logs do Vercel para quaisquer novos problemas.
 
 ---
-## 2024-07-30: Correção de `ERR_MODULE_NOT_FOUND` para `./prisma-storage` na API
+## 2024-07-30: Correção de `ERR_MODULE_NOT_FOUND` para `./prisma-client` na API
 
 **Sumário Técnico do Progresso:**
 
-*   Após a correção anterior, um novo erro `ERR_MODULE_NOT_FOUND` surgiu nos logs de runtime do Vercel: `Cannot find module '/var/task/api/_lib/prisma-storage' imported from /var/task/api/_lib/storage.js`.
+*   Após a correção anterior, um novo erro `ERR_MODULE_NOT_FOUND` surgiu nos logs de runtime do Vercel: `Cannot find module '/var/task/api/_lib/prisma-client' imported from /var/task/api/_lib/prisma-storage.js`.
 *   **Causa Raiz Identificada:** O arquivo `api/_lib/storage.ts` estava importando o módulo de `PrismaStorage` como `import { PrismaStorage } from "./prisma-storage";` sem a extensão `.js`.
 *   **Ação de Correção:**
     *   Modificado o arquivo `api/_lib/storage.ts` para que o import seja `import { PrismaStorage } from "./prisma-storage.js";`.
@@ -638,5 +638,5 @@
 
 *   Realizar um novo deploy no Vercel com a correção no import de `prisma-storage.js`.
 *   Testar novamente os fluxos de autenticação e perfil.
-*   Se outros erros `ERR_MODULE_NOT_FOUND` aparecerem, aplicar a mesma correção de adicionar a extensão `.js` aos imports relativos nos arquivos indicados pelos logs.
+*   Se outros erros `ERR_MODULE_NOT_FOUND` aparecerem, aplicar a mesma correção de adicionar a extensão `.js` aos imports relativos nos arquivos TypeScript correspondentes.
 *   Monitorar os logs do Vercel.

@@ -1,4 +1,4 @@
-import prisma from './prisma-client';
+import prisma from './prisma-client.js';
 import type { IStorage } from './storage';
 // Importar tipos diretamente do @prisma/client
 import { User, UserProfile, Content, Credit, ContentType, Prisma } from '@prisma/client';
